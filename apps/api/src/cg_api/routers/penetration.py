@@ -91,6 +91,15 @@ async def penetration(
         raise HTTPException(422, "穿透计算超时：请缩小深度或提高比例阈值") from None
     report = analyse(entity_id, result, edges, config, entity_kind=kinds)
     payload = result_to_jsonable(report, result, entity_kind=kinds)
+    # 逐边比例（图上标注用）：statement_id → 百分数
+    ratio_by_statement = {
+        e.statement_id: (
+            round(e.share_scaled * 100.0 / 10**8, 6) if e.share_scaled is not None else None
+        )
+        for e in edges
+    }
+    for path in payload["paths"] + payload["control_paths"]:
+        path["edge_ratios"] = [ratio_by_statement.get(sid) for sid in path["statement_ids"]]
     payload["entity_name"] = names.get(entity_id, entity.primary_name)
     payload["names"] = names
     payload["at"] = str(at) if at else None

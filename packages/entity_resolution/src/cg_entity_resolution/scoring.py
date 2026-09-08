@@ -15,7 +15,7 @@ class ScoringWeights:
     same_uscc: float = 0.60
     same_lei: float = 0.55
     same_source_key: float = 0.45
-    norm_name_equal: float = 0.25
+    norm_name_equal: float = 0.75
     short_name_equal: float = 0.15
     name_similarity: float = 0.30  # 乘以相似度值
     kind_match: float = 0.05
@@ -29,8 +29,8 @@ class Thresholds:
     """
 
     auto_merge: float = 0.90
-    review_band: float = 0.65
-    reject_below: float = 0.50
+    review_band: float = 0.45
+    reject_below: float = 0.35
 
 
 DEFAULT_WEIGHTS = ScoringWeights()

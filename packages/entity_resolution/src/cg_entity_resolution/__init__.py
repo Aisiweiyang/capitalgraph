@@ -6,11 +6,7 @@
 
 from cg_entity_resolution.features import PairFeatures, compute_features
 from cg_entity_resolution.scoring import ScoringWeights, Thresholds, score_pair
-from cg_entity_resolution.service import (
-    ResolutionService,
-    apply_merge,
-    find_candidates_for_entity,
-)
+from cg_entity_resolution.service import ResolutionService, apply_merge
 
 __all__ = [
     "PairFeatures",
@@ -19,6 +15,5 @@ __all__ = [
     "Thresholds",
     "apply_merge",
     "compute_features",
-    "find_candidates_for_entity",
     "score_pair",
 ]

@@ -9,6 +9,9 @@ dependencies = [
     "cg-connectors",
 ]
 
+[project.scripts]
+cg-worker = "cg_workers.worker:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
