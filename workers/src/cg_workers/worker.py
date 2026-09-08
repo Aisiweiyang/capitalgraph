@@ -16,15 +16,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
-import time
 
 from cg_connectors.base import ConnectorContext
 from cg_connectors.ingest import run_connector
 from cg_connectors.registry import get_connector
 from cg_domain.config import load_settings
 from cg_domain.db import make_engine, make_session_factory
-from cg_domain.enums import TaskStatus
 from cg_domain.orm import Base
 from cg_domain.repo import Repository
 from cg_entity_resolution import ResolutionService
@@ -53,10 +50,8 @@ async def handle_task(session, kind: str, payload: dict) -> None:
         else:
             print("[worker] 采集完成:", json.dumps(stats.to_dict(), ensure_ascii=False), flush=True)
     elif kind == "resolve_duplicates":
-        repo = Repository(session)
-        from sqlalchemy import select
-
         from cg_domain.orm import Entity
+        from sqlalchemy import select
 
         rows = (await session.execute(select(Entity.id).limit(500))).scalars().all()
         service = ResolutionService(session)
@@ -88,7 +83,7 @@ async def run_once() -> int:
             await repo.finish_task(task.id, ok=True)
             await session.commit()
             processed = 1
-        except Exception as exc:  # noqa: BLE001 - 任务级失败隔离
+        except Exception as exc:
             await repo.finish_task(task.id, ok=False, error=f"{type(exc).__name__}: {exc}")
             await session.commit()
             print(f"[worker] 任务失败({task.attempts}/{task.max_attempts}): {exc}", flush=True)

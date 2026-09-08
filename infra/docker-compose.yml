@@ -1,0 +1,56 @@
+version: "3.9"
+
+# CapitalGraph CN 基础设施（生产形态）
+# 本地开发无需 Docker（默认 SQLite）。此文件提供 PostgreSQL 形态：
+#   docker compose -f infra/docker-compose.yml up -d
+#   然后在 .env 设置 CG_DATABASE_URL=postgresql+asyncpg://cg:cg@localhost:5432/capitalgraph
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cg
+      POSTGRES_PASSWORD: cg
+      POSTGRES_DB: capitalgraph
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cg -d capitalgraph"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    environment:
+      CG_DATABASE_URL: postgresql+asyncpg://cg:cg@db:5432/capitalgraph
+      CG_SECRET_KEY: ${CG_SECRET_KEY:?请在环境或 .env 中设置 CG_SECRET_KEY}
+      CG_ENV: prod
+      CG_WEB_DIST: /app/web
+    ports:
+      - "8300:8300"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "uv run alembic upgrade head &&
+             uv run python -m cg_api.seed &&
+             uv run uvicorn cg_api.main:app --host 0.0.0.0 --port 8300"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    environment:
+      CG_DATABASE_URL: postgresql+asyncpg://cg:cg@db:5432/capitalgraph
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run cg-worker --mode loop --interval 5
+
+volumes:
+  pgdata:

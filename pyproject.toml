@@ -61,6 +61,7 @@ markers = [
 [tool.coverage.run]
 source = ["packages", "apps/api/src", "workers/src"]
 omit = ["*/tests/*", "*/migrations/*"]
+concurrency = ["thread", "greenlet"]
 
 [tool.coverage.report]
 show_missing = true

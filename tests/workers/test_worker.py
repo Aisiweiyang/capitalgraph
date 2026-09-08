@@ -2,9 +2,7 @@
 
 import json
 
-from cg_domain.enums import Role
 from cg_domain.repo import Repository
-from cg_domain.orm import Entity
 from cg_workers.worker import handle_task, run_once
 
 
@@ -54,7 +52,5 @@ def _make_record(ext: str, uscc: str | None):
 
 
 async def test_run_once_with_no_tasks(tmp_path, monkeypatch):
-    monkeypatch.setenv(
-        "CG_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path}/worker.sqlite3"
-    )
+    monkeypatch.setenv("CG_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path}/worker.sqlite3")
     assert await run_once() == 0

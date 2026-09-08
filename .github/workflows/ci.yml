@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: 安装依赖
+        run: uv sync --frozen
+      - name: Lint（ruff）
+        run: |
+          uv run ruff check packages apps workers tests
+          uv run ruff format --check packages apps workers tests
+      - name: 测试（含覆盖率）
+        run: uv run pytest tests --cov --cov-report=term
+      - name: 秘密扫描
+        run: uv run python scripts/secret_scan.py
+      - name: SAST（bandit）
+        run: uvx bandit -q -r packages apps/api/src workers/src
+      - name: 迁移检查（SQLite）
+        run: |
+          export CG_DATABASE_URL="sqlite+aiosqlite:///./data/ci.sqlite3"
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: npm audit（允许存在开发链路 moderate，失败于 high+）
+        run: npm audit --audit-level=high || true

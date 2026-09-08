@@ -148,7 +148,8 @@ class CsvFixtureConnector(BaseConnector):
                             )
                         )
                         seen_entities.add(ext_id)
-            except DomainError as exc:
+            except (DomainError, ValueError, TypeError) as exc:
+                # 坏行隔离：字段错位/比例非法/日期非法都只丢弃该行并留痕
                 issues.append(
                     IngestionIssue(
                         code="row_rejected",
