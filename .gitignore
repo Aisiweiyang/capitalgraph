@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+coverage.xml
+htmlcov/
+dist/
+build/
+
+# Node / frontend
+node_modules/
+apps/web/dist/
+apps/web/coverage/
+playwright-report/
+test-results/
+
+# Local data & runs
+data/
+*.sqlite3
+*.db
+!tests/fixtures/*.sqlite3
+
+# Env & secrets
+.env
+.env.local
+*.key
+secrets/
+
+# Exports
+exports/
+backups/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
