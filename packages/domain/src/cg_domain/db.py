@@ -36,6 +36,4 @@ def make_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession
 
 
 def default_database_url() -> str:
-    return os.environ.get(
-        "CG_DATABASE_URL", "sqlite+aiosqlite:///./data/capitalgraph.sqlite3"
-    )
+    return os.environ.get("CG_DATABASE_URL", "sqlite+aiosqlite:///./data/capitalgraph.sqlite3")

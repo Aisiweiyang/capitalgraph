@@ -2,9 +2,10 @@
 
 from datetime import date
 
-from cg_connectors.synthetic import SyntheticConnector
 from cg_connectors.base import ConnectorContext
-from cg_domain.enums import Predicate, RatioUnit, Role, StatementStatus, TaskStatus
+from cg_connectors.ingest import run_connector
+from cg_connectors.synthetic import SyntheticConnector
+from cg_domain.enums import Predicate, RatioUnit, StatementStatus, TaskStatus
 from cg_domain.models import (
     DocumentRef,
     EntityRecord,
@@ -12,7 +13,6 @@ from cg_domain.models import (
     StatementRecord,
 )
 from cg_domain.repo import Repository
-from cg_connectors.ingest import run_connector
 
 
 async def make_entity(repo: Repository, ext: str, name: str, uscc: str | None = None):
@@ -55,12 +55,18 @@ async def test_statement_idempotent_and_history(db_session):
             evidence=[EvidenceRecord(field_path="x", raw_value="60%")],
         )
 
-    s1, created1 = await repo.add_statement(stmt(), subject_id=a.id, object_id=b.id, connector_id="t", ingestion_run_id=None)
-    s2, created2 = await repo.add_statement(stmt(), subject_id=a.id, object_id=b.id, connector_id="t", ingestion_run_id=None)
+    s1, created1 = await repo.add_statement(
+        stmt(), subject_id=a.id, object_id=b.id, connector_id="t", ingestion_run_id=None
+    )
+    s2, created2 = await repo.add_statement(
+        stmt(), subject_id=a.id, object_id=b.id, connector_id="t", ingestion_run_id=None
+    )
     assert created1 and not created2
     assert s1.id == s2.id
     # 同期不同比例 → 新声明 + 旧声明 superseded
-    s3, created3 = await repo.add_statement(stmt(ratio=55.0), subject_id=a.id, object_id=b.id, connector_id="t", ingestion_run_id=None)
+    s3, created3 = await repo.add_statement(
+        stmt(ratio=55.0), subject_id=a.id, object_id=b.id, connector_id="t", ingestion_run_id=None
+    )
     assert created3
     await repo.supersede(s1.id, s3.id)
     history = await repo.statement_history(a.id, b.id)
@@ -92,12 +98,16 @@ async def test_effective_edges_respect_time_point(db_session):
         ratio_unit=RatioUnit.PERCENT,
     )
     # 不同 valid_from → 两条并存（历史期间各自成立）
-    await repo.add_statement(old, subject_id=person.id, object_id=company.id, connector_id="t", ingestion_run_id=None)
-    await repo.add_statement(new, subject_id=person.id, object_id=company.id, connector_id="t", ingestion_run_id=None)
+    await repo.add_statement(
+        old, subject_id=person.id, object_id=company.id, connector_id="t", ingestion_run_id=None
+    )
+    await repo.add_statement(
+        new, subject_id=person.id, object_id=company.id, connector_id="t", ingestion_run_id=None
+    )
 
-    at_2020 = (await repo.effective_edges(date(2020, 6, 30)))
-    at_2023 = (await repo.effective_edges(date(2023, 1, 1)))
-    at_2022_6_1 = (await repo.effective_edges(date(2022, 6, 1)))
+    at_2020 = await repo.effective_edges(date(2020, 6, 30))
+    at_2023 = await repo.effective_edges(date(2023, 1, 1))
+    at_2022_6_1 = await repo.effective_edges(date(2022, 6, 1))
     assert len(at_2020) == 1 and at_2020[0].share_ratio_scaled == round(0.6 * 10**8)
     assert len(at_2023) == 1 and at_2023[0].share_ratio_scaled == round(0.1 * 10**8)
     # 左闭右开：旧声明 valid_to=2022-05-31 为开区间上界，5-31 当天已失效、5-30 仍有效
@@ -154,7 +164,7 @@ async def test_connector_ingestion_end_to_end_idempotent(db_session):
     assert stats2 is None  # 幂等命中
 
     repo = Repository(db_session)
-    hits, total = await repo.search("有限公司")
+    _, total = await repo.search("有限公司")
     assert total > 0
     # 声明都有 connector 归属
     edges = await repo.effective_edges()

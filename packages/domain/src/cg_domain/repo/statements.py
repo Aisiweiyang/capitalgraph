@@ -7,7 +7,6 @@ supersede 语义：同一 (subject, predicate, object, valid_from) 且载荷变�
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -76,9 +75,7 @@ class StatementRepository:
         await self.session.flush()
         return snap
 
-    async def add_fragment(
-        self, snapshot_id: str, ev: EvidenceRecord
-    ) -> EvidenceFragment:
+    async def add_fragment(self, snapshot_id: str, ev: EvidenceRecord) -> EvidenceFragment:
         frag = EvidenceFragment(
             snapshot_id=snapshot_id,
             field_path=ev.field_path,
@@ -109,7 +106,9 @@ class StatementRepository:
         await self.session.flush()
         return run
 
-    async def finish_run(self, run_id: str, status: IngestionStatus, summary: str = "", counts: dict | None = None) -> None:
+    async def finish_run(
+        self, run_id: str, status: IngestionStatus, summary: str = "", counts: dict | None = None
+    ) -> None:
         run = await self.session.get(IngestionRun, run_id)
         if run is None:
             return
@@ -120,24 +119,6 @@ class StatementRepository:
         await self.session.flush()
 
     # ------------------------------------------------------------- 声明入库
-
-    @staticmethod
-    def _payload_fingerprint(stmt: StatementRecord, subject_id: str, object_id: str) -> str:
-        payload = {
-            "s": subject_id,
-            "p": stmt.predicate.value,
-            "o": object_id,
-            "vf": stmt.valid_from.isoformat(),
-            "vt": stmt.valid_to.isoformat() if stmt.valid_to else None,
-            "share": stmt.share_ratio_scaled,
-            "voting": stmt.voting_ratio_scaled,
-            "ct": stmt.control_type.value if stmt.control_type else None,
-            "amount": stmt.amount,
-            "class": stmt.share_class,
-        }
-        return hashlib.sha256(
-            json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
-        ).hexdigest()
 
     async def add_statement(
         self,
@@ -151,7 +132,6 @@ class StatementRepository:
         fragment_ids: list[str] | None = None,
     ) -> tuple[Statement, bool]:
         """返回 (声明, 是否新插入)。幂等：重复载荷不重复入库。"""
-        fingerprint = self._payload_fingerprint(record, subject_id, object_id)
         rows = (
             (
                 await self.session.execute(
@@ -173,7 +153,8 @@ class StatementRepository:
             same_payload = (
                 existing.share_ratio_scaled == record.share_ratio_scaled
                 and existing.voting_ratio_scaled == record.voting_ratio_scaled
-                and existing.control_type == (record.control_type.value if record.control_type else None)
+                and existing.control_type
+                == (record.control_type.value if record.control_type else None)
                 and existing.valid_to == record.valid_to
             )
             if same_payload:
@@ -203,9 +184,7 @@ class StatementRepository:
         self.session.add(statement)
         await self.session.flush()
         for fid in fragment_ids or []:
-            self.session.add(
-                StatementEvidence(statement_id=statement.id, evidence_fragment_id=fid)
-            )
+            self.session.add(StatementEvidence(statement_id=statement.id, evidence_fragment_id=fid))
         await self.session.flush()
         return statement, True
 

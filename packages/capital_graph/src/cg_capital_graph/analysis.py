@@ -9,6 +9,9 @@ import hashlib
 from dataclasses import dataclass, field
 from fractions import Fraction
 
+from cg_domain.models import PenetrationConfig
+from cg_domain.orm import RATIO_SCALE
+
 from cg_capital_graph.engine import (
     ALGORITHM_VERSION,
     GraphEdge,
@@ -17,8 +20,6 @@ from cg_capital_graph.engine import (
     build_adjacency,
     iter_frontier,
 )
-from cg_domain.models import PenetrationConfig
-from cg_domain.orm import RATIO_SCALE
 
 _SCALE_F = Fraction(RATIO_SCALE)
 
@@ -28,7 +29,7 @@ def scaled_to_fraction(scaled: int) -> Fraction:
 
 
 def fraction_to_scaled(value: Fraction) -> int:
-    """ banker's rounding 到 1e-8 精度，输出边界唯一舍入点。"""
+    """banker's rounding 到 1e-8 精度，输出边界唯一舍入点。"""
     return round(value * _SCALE_F)
 
 
@@ -109,7 +110,9 @@ def aggregate_by_shareholder(result: PenetrationResult) -> list[ShareholderAggre
     return aggregates
 
 
-def detect_cycles(edges: list[GraphEdge], *, direction: str = "up", limit: int = 50) -> list[list[str]]:
+def detect_cycles(
+    edges: list[GraphEdge], *, direction: str = "up", limit: int = 50
+) -> list[list[str]]:
     """持股子图上的环检测（迭代 DFS，三色标记）。返回节点环列表（有界）。"""
     adj = build_adjacency(edges, direction)
     color: dict[str, int] = {}  # 0=white 1=gray 2=black
@@ -129,12 +132,12 @@ def detect_cycles(edges: list[GraphEdge], *, direction: str = "up", limit: int =
                 nxts = []
                 for edge in adj.get(node, []):
                     nxts.append(edge.subject if direction == "up" else edge.obj)
-                for nxt in reversed(sorted(nxts)):
+                for nxt in sorted(nxts, reverse=True):
                     nxt_color = color.get(nxt, 0)
                     if nxt_color == 0:
                         stack.append((nxt, 0))
                     elif nxt_color == 1 and nxt in on_stack:
-                        cycle = on_stack[on_stack.index(nxt):] + [nxt]
+                        cycle = [*on_stack[on_stack.index(nxt) :], nxt]
                         if cycle not in cycles and len(cycles) < limit:
                             cycles.append(cycle)
             else:
@@ -349,9 +352,7 @@ def result_to_jsonable(
         "paths": [path_json(p) for p in result.paths],
         "control_paths": [path_json(p) for p in result.control_paths],
         "cycles": [list(c) for c in report.cycles],
-        "cross_holdings": [
-            {"entity_a": c.entity_a, "entity_b": c.entity_b} for c in report.cross
-        ],
+        "cross_holdings": [{"entity_a": c.entity_a, "entity_b": c.entity_b} for c in report.cross],
         "aggregates": [
             {
                 "entity_id": a.entity_id,

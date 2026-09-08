@@ -7,10 +7,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cg_domain.enums import ReviewStatus, Role, TaskStatus
@@ -21,7 +21,6 @@ from cg_domain.orm import (
     RiskFlag,
     Task,
     User,
-    utcnow,
 )
 
 
@@ -89,7 +88,7 @@ class OpsRepository:
         item.status = ReviewStatus.RESOLVED.value
         item.resolution_note = note
         item.assignee = actor
-        item.resolved_at = datetime.now(timezone.utc)
+        item.resolved_at = datetime.now(UTC)
         await self.session.flush()
         return item
 
@@ -158,7 +157,7 @@ class OpsRepository:
 
     async def claim_next_task(self) -> Task | None:
         """领取一个到期任务（简单乐观锁：状态 pending → running）。"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         row = await self.session.execute(
             select(Task)
             .where(
@@ -191,19 +190,17 @@ class OpsRepository:
                 task.last_error = error_tail
             else:
                 # 指数退避：2^n 秒，封顶 10 分钟
-                delay = min(2 ** task.attempts, 600)
+                delay = min(2**task.attempts, 600)
                 task.status = TaskStatus.PENDING.value
                 task.last_error = error_tail
-                task.next_retry_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
+                task.next_retry_at = datetime.now(UTC) + timedelta(seconds=delay)
         await self.session.flush()
         return task
 
     # ------------------------------------------------------------- 用户与 RBAC
 
     async def get_user_by_username(self, username: str) -> User | None:
-        row = await self.session.execute(
-            select(User).where(User.username == username).limit(1)
-        )
+        row = await self.session.execute(select(User).where(User.username == username).limit(1))
         return row.scalars().first()
 
     async def create_user(self, username: str, password_hash: str, role: Role) -> User:
@@ -213,6 +210,4 @@ class OpsRepository:
         return user
 
     async def user_count(self) -> int:
-        return int(
-            (await self.session.execute(select(func.count(User.id))).scalar_one())
-        )
+        return int(await self.session.execute(select(func.count(User.id))).scalar_one())

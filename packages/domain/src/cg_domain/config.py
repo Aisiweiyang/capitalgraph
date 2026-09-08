@@ -54,12 +54,10 @@ class Settings:
     ubo_min_effective_ratio: float = 0.25
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         return cls(
             env=_env("CG_ENV", "dev"),
-            database_url=_env(
-                "CG_DATABASE_URL", "sqlite+aiosqlite:///./data/capitalgraph.sqlite3"
-            ),
+            database_url=_env("CG_DATABASE_URL", "sqlite+aiosqlite:///./data/capitalgraph.sqlite3"),
             storage_dir=_env("CG_STORAGE_DIR", "./data/objects"),
             store_raw_documents=_env_bool("CG_STORE_RAW_DOCUMENTS", True),
             connector_rate_limit_per_sec=_env_float("CG_CONNECTOR_RATE_LIMIT_PER_SEC", 0.2),

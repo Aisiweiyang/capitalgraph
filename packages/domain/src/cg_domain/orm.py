@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -39,7 +39,7 @@ def new_id() -> str:
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -175,9 +175,7 @@ class StatementEvidence(Base):
     __tablename__ = "statement_evidence"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    statement_id: Mapped[str] = mapped_column(
-        ForeignKey("relationship_statements.id"), index=True
-    )
+    statement_id: Mapped[str] = mapped_column(ForeignKey("relationship_statements.id"), index=True)
     evidence_fragment_id: Mapped[str] = mapped_column(
         ForeignKey("evidence_fragments.id"), index=True
     )
@@ -274,9 +272,7 @@ class ResolutionDecision(Base):
     __tablename__ = "resolution_decisions"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    candidate_id: Mapped[str] = mapped_column(
-        ForeignKey("resolution_candidates.id"), index=True
-    )
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("resolution_candidates.id"), index=True)
     decision: Mapped[str] = mapped_column(String(16))
     decided_by: Mapped[str] = mapped_column(String(16))
     reason: Mapped[str] = mapped_column(Text, default="")
@@ -310,9 +306,7 @@ class DerivedPath(Base):
     __tablename__ = "derived_paths"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    calculation_id: Mapped[str] = mapped_column(
-        ForeignKey("ownership_calculations.id"), index=True
-    )
+    calculation_id: Mapped[str] = mapped_column(ForeignKey("ownership_calculations.id"), index=True)
     sequence_no: Mapped[int] = mapped_column(Integer)
     path_json: Mapped[str] = mapped_column(Text, default="[]")
     direct_ratio_scaled: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

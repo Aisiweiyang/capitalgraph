@@ -72,7 +72,8 @@ def is_valid_uscc(code: str) -> bool:
     upper = code.upper()
     try:
         total = sum(
-            _USCC_CHARSET.index(ch) * weight for ch, weight in zip(upper[:17], _USCC_WEIGHTS)
+            _USCC_CHARSET.index(ch) * weight
+            for ch, weight in zip(upper[:17], _USCC_WEIGHTS, strict=True)
         )
     except ValueError:
         return False

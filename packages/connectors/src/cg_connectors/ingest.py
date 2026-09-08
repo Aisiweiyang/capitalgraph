@@ -12,11 +12,11 @@ from __future__ import annotations
 import hashlib
 import json
 
+from cg_domain.enums import IngestionStatus
+from cg_domain.repo import Repository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cg_connectors.base import BaseConnector, ConnectorContext, ConnectorResult, RateLimiter
-from cg_domain.enums import IngestionStatus
-from cg_domain.repo import Repository
 
 
 class IngestionStats:
@@ -58,7 +58,7 @@ async def ingest_connector_result(
     default_doc_id = next(iter(doc_ids.values()), None)
     fragment_cache: dict[str, str] = {}
 
-    async def fragment_id(ev) -> str | None:  # noqa: ANN001 - EvidenceRecord
+    async def fragment_id(ev) -> str | None:
         cache_key = f"{ev.document_title}|{ev.field_path}|{ev.raw_value}"
         if cache_key in fragment_cache:
             return fragment_cache[cache_key]

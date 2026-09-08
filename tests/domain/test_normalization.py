@@ -22,7 +22,7 @@ def test_uscc_check_digit_valid_and_invalid():
     assert len(base) == 17
     charset = "0123456789ABCDEFGHJKLMNPQRTUWXY"
     weights = (1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28)
-    total = sum(charset.index(ch) * w for ch, w in zip(base, weights))
+    total = sum(charset.index(ch) * w for ch, w in zip(base, weights, strict=True))
     code = base + charset[(31 - total % 31) % 31]
     assert len(code) == 18
     assert is_valid_uscc(code)
@@ -35,8 +35,9 @@ def test_uscc_check_digit_valid_and_invalid():
 
 
 def test_synthetic_uscc_is_valid():
-    from cg_connectors.synthetic import _fake_uscc
     import random
+
+    from cg_connectors.synthetic import _fake_uscc
 
     rng = random.Random(7)
     for _ in range(20):

@@ -9,9 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from cg_domain.enums import DecisionBy, DecisionOutcome
 from cg_domain.normalization import normalize_name
 from cg_domain.orm import (
@@ -21,6 +18,9 @@ from cg_domain.orm import (
     ResolutionDecision,
     ReviewItem,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from cg_entity_resolution.features import PairFeatures, compute_features
 from cg_entity_resolution.scoring import (
     DEFAULT_THRESHOLDS,
@@ -61,7 +61,9 @@ class ResolutionService:
         features = compute_features(left, right, id_rows, id_rows)
         return features, score_pair(features)
 
-    async def find_candidates_for_entity(self, entity_id: str, *, limit: int = 20) -> list[ResolutionCandidate]:
+    async def find_candidates_for_entity(
+        self, entity_id: str, *, limit: int = 20
+    ) -> list[ResolutionCandidate]:
         """对给定实体生成解析候选（同规范名或后缀剥离名一致的其它实体）。"""
         entity = await self.session.get(Entity, entity_id)
         if entity is None:
@@ -99,7 +101,9 @@ class ResolutionService:
             candidates.append(candidate)
         return candidates
 
-    async def _attach_auto_decision(self, candidate: ResolutionCandidate, scored: ScoredPair) -> None:
+    async def _attach_auto_decision(
+        self, candidate: ResolutionCandidate, scored: ScoredPair
+    ) -> None:
         if scored.suggested == "merge":
             decision_outcome = DecisionOutcome.MERGE
             decided_by = DecisionBy.RULE

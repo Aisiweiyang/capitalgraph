@@ -23,8 +23,8 @@ from cg_capital_graph.analysis import (
 from cg_capital_graph.engine import (
     ALGORITHM_VERSION,
     GraphEdge,
-    PenetrationTimeout,
-    PenetrationTruncated,
+    PenetrationTimeoutError,
+    PenetrationTruncatedError,
     build_adjacency,
     penetrate,
 )
@@ -36,8 +36,8 @@ __all__ = [
     "GraphEdge",
     "PathResult",
     "PenetrationResult",
-    "PenetrationTimeout",
-    "PenetrationTruncated",
+    "PenetrationTimeoutError",
+    "PenetrationTruncatedError",
     "ShareholderAggregate",
     "UBOCandidate",
     "aggregate_by_shareholder",

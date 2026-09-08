@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterator
@@ -74,11 +75,11 @@ class PenetrationResult:
         return notes
 
 
-class PenetrationTimeout(Exception):
+class PenetrationTimeoutError(Exception):
     """遍历超时。不返回部分结果，避免把时间相关的输出当作数据。"""
 
 
-class PenetrationTruncated(Exception):
+class PenetrationTruncatedError(Exception):
     """护栏命中后仍需继续才能完整——作为内部信号用于停止扩展。"""
 
 
@@ -129,10 +130,10 @@ def penetrate(
         counter["steps"] += 1
         # 超时逐步检查（开销远小于一次邻接表访问）
         if monotonic() > deadline:
-            raise PenetrationTimeout(f"穿透超时（>{config.timeout_seconds}s）")
+            raise PenetrationTimeoutError(f"穿透超时（>{config.timeout_seconds}s）")
         if len(result.paths) >= config.max_paths or len(visited_global) >= config.max_nodes:
             result.truncated = True
-            raise PenetrationTruncated()
+            raise PenetrationTruncatedError()
 
     def dfs(
         node: str,
@@ -147,7 +148,7 @@ def penetrate(
             nxt = edge.subject if direction == "up" else edge.obj
             if nxt in chain_nodes:
                 # 环：记录一次（按环路节点序列去重），不递归
-                cycle = chain_nodes[chain_nodes.index(nxt):] + [nxt]
+                cycle = [*chain_nodes[chain_nodes.index(nxt) :], nxt]
                 if cycle not in result.cycles and len(result.cycles) < 100:
                     result.cycles.append(cycle)
                 continue
@@ -157,8 +158,8 @@ def penetrate(
             if ratio is not None and new_product < min_ratio_fraction and direction == "up":
                 # 有效权益低于阈值：更深的路径只会更小（比例 ≤ 1），剪枝
                 continue
-            new_chain = chain_nodes + [nxt]
-            new_statements = chain_statements + [edge.statement_id]
+            new_chain = [*chain_nodes, nxt]
+            new_statements = [*chain_statements, edge.statement_id]
             result.paths.append(
                 PathResult(
                     nodes=new_chain,
@@ -170,10 +171,8 @@ def penetrate(
             if len(new_chain) < config.max_depth:
                 dfs(nxt, new_chain, new_statements, new_product, new_missing)
 
-    try:
+    with contextlib.suppress(PenetrationTruncatedError):
         dfs(root, [root], [], _UNIT, False)
-    except PenetrationTruncated:
-        pass
 
     # 直接控制声明路径（一跳即可，控制语义不由比例推导）
     for edge in control_adj.get(root, []):

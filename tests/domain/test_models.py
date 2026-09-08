@@ -3,8 +3,7 @@
 from datetime import date
 
 import pytest
-
-from cg_domain.enums import ControlType, EntityKind, Predicate, RatioUnit
+from cg_domain.enums import EntityKind, Predicate, RatioUnit
 from cg_domain.errors import RatioError, ValidationError
 from cg_domain.models import EntityRecord, PenetrationConfig, StatementRecord
 from cg_domain.orm import RATIO_SCALE

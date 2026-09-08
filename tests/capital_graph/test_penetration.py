@@ -1,13 +1,9 @@
 """穿透引擎与分析测试：链式持股、环路、缺比例、确定性、护栏。"""
 
-from datetime import date
-
 import pytest
-from fractions import Fraction
-
 from cg_capital_graph import (
     GraphEdge,
-    PenetrationTimeout,
+    PenetrationTimeoutError,
     aggregate_by_shareholder,
     analyse,
     cross_holdings,
@@ -153,7 +149,7 @@ def test_timeout_raises_not_partial():
             return self.t
 
     edges = [edge("s1", "a", "t", 100.0)]
-    with pytest.raises(PenetrationTimeout):
+    with pytest.raises(PenetrationTimeoutError):
         penetrate(
             "t",
             edges,

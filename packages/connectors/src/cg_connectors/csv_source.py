@@ -17,12 +17,6 @@ from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 
-from cg_connectors.base import (
-    BaseConnector,
-    ConnectorContext,
-    ConnectorResult,
-    IngestionIssue,
-)
 from cg_domain.enums import ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
 from cg_domain.errors import DomainError
 from cg_domain.models import (
@@ -31,6 +25,13 @@ from cg_domain.models import (
     EntityRecord,
     EvidenceRecord,
     StatementRecord,
+)
+
+from cg_connectors.base import (
+    BaseConnector,
+    ConnectorContext,
+    ConnectorResult,
+    IngestionIssue,
 )
 
 _REQUIRED_HEADERS = [
@@ -79,14 +80,16 @@ class CsvFixtureConnector(BaseConnector):
         path_raw = ctx.params.get("path", "")
         path = Path(path_raw)
         if not path.is_file():
-            yield ConnectorResult(), IngestionIssue(
-                code="file_not_found", message=f"CSV 不存在: {path.name}"
+            yield (
+                ConnectorResult(),
+                IngestionIssue(code="file_not_found", message=f"CSV 不存在: {path.name}"),
             )
             return
         size = path.stat().st_size
         if size > 32 * 1024 * 1024:
-            yield ConnectorResult(), IngestionIssue(
-                code="file_too_large", message="CSV 超过 32MB 上限"
+            yield (
+                ConnectorResult(),
+                IngestionIssue(code="file_too_large", message="CSV 超过 32MB 上限"),
             )
             return
 
@@ -95,9 +98,12 @@ class CsvFixtureConnector(BaseConnector):
         headers = reader.fieldnames or []
         missing = [h for h in _REQUIRED_HEADERS if h not in headers]
         if missing:
-            yield ConnectorResult(), IngestionIssue(
-                code="schema_mismatch",
-                message=f"缺少必需列: {','.join(missing)}",
+            yield (
+                ConnectorResult(),
+                IngestionIssue(
+                    code="schema_mismatch",
+                    message=f"缺少必需列: {','.join(missing)}",
+                ),
             )
             return
 

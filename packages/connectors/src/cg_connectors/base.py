@@ -11,8 +11,8 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Iterator
 
 from cg_domain.models import ConnectorSpec, DocumentRef, EntityRecord, StatementRecord
 

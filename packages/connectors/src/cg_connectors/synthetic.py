@@ -12,12 +12,6 @@ from collections.abc import Iterator
 from datetime import date
 from typing import Any
 
-from cg_connectors.base import (
-    BaseConnector,
-    ConnectorContext,
-    ConnectorResult,
-    IngestionIssue,
-)
 from cg_domain.enums import ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
 from cg_domain.models import (
     ConnectorSpec,
@@ -27,6 +21,13 @@ from cg_domain.models import (
     StatementRecord,
 )
 from cg_domain.normalization import is_valid_uscc
+
+from cg_connectors.base import (
+    BaseConnector,
+    ConnectorContext,
+    ConnectorResult,
+    IngestionIssue,
+)
 
 _SURNAMES = "王李张刘陈杨黄赵周吴徐孙马朱胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭"
 _GIVEN = "伟芳娜敏静磊军洋勇艳杰娟涛明超秀兰霞平刚桂华建文军鑫宇晨曦致远"
@@ -47,7 +48,7 @@ def _fake_uscc(rng: random.Random) -> str:
 def _uscc_with_check(base17: str) -> str:
     charset = "0123456789ABCDEFGHJKLMNPQRTUWXY"
     weights = (1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28)
-    total = sum(charset.index(ch) * w for ch, w in zip(base17, weights))
+    total = sum(charset.index(ch) * w for ch, w in zip(base17, weights, strict=True))
     return base17 + charset[(31 - total % 31) % 31]
 
 
@@ -68,8 +69,11 @@ class SyntheticConnector(BaseConnector):
         )
 
     def idempotency_key(self, ctx: ConnectorContext) -> str:
-        return "synthetic:" + str(ctx.params.get("seed", "42")) + ":" + str(
-            ctx.params.get("entities", "40")
+        return (
+            "synthetic:"
+            + str(ctx.params.get("seed", "42"))
+            + ":"
+            + str(ctx.params.get("entities", "40"))
         )
 
     def fetch(
@@ -129,9 +133,7 @@ class SyntheticConnector(BaseConnector):
                     used_names.add(name)
                     break
             uscc = _fake_uscc(rng)
-            kind = (
-                EntityKind.LISTED_COMPANY if i < 3 else EntityKind.COMPANY
-            )
+            kind = EntityKind.LISTED_COMPANY if i < 3 else EntityKind.COMPANY
             record = EntityRecord(
                 connector_id="synthetic",
                 external_id=f"C{i:04d}",
@@ -193,9 +195,7 @@ class SyntheticConnector(BaseConnector):
                         ratio_unit=RatioUnit.PERCENT,
                         confidence=1.0,
                         claim_basis=ClaimBasis.NORMALIZED,
-                        evidence=evidence(
-                            f"shareholders[{idx}][{j}].ratio", f"{ratio:.2f}%"
-                        ),
+                        evidence=evidence(f"shareholders[{idx}][{j}].ratio", f"{ratio:.2f}%"),
                     )
                 )
                 if ratio >= 34.0:
@@ -208,9 +208,7 @@ class SyntheticConnector(BaseConnector):
                             control_type=ControlType.VOTING_RIGHTS,
                             voting_ratio=ratio,
                             ratio_unit=RatioUnit.PERCENT,
-                            evidence=evidence(
-                                f"shareholders[{idx}][{j}].control", "控制"
-                            ),
+                            evidence=evidence(f"shareholders[{idx}][{j}].control", "控制"),
                         )
                     )
 

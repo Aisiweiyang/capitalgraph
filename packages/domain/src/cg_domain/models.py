@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from cg_domain.enums import AliasType, ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
+from cg_domain.enums import ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
 from cg_domain.errors import RatioError, ValidationError
 from cg_domain.normalization import normalize_name
 from cg_domain.orm import RATIO_SCALE
@@ -108,7 +108,7 @@ class StatementRecord(BaseModel):
     evidence: list[EvidenceRecord] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _validate(self) -> "StatementRecord":
+    def _validate(self) -> StatementRecord:
         if self.valid_to is not None and self.valid_from > self.valid_to:
             raise ValidationError(f"时间区间倒置: {self.valid_from} > {self.valid_to}")
         if self.predicate is Predicate.HOLDS_SHARES and self.share_ratio is None:

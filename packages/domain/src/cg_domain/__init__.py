@@ -41,14 +41,15 @@ from cg_domain.normalization import is_valid_uscc, normalize_company_name, norma
 from cg_domain.orm import RATIO_SCALE
 
 __all__ = [
+    "RATIO_SCALE",
     "AliasType",
     "ClaimBasis",
     "ConnectorSpec",
     "ControlType",
     "DecisionBy",
     "DecisionOutcome",
-    "DomainError",
     "DocumentRef",
+    "DomainError",
     "EntityKind",
     "EntityRecord",
     "EvidenceRecord",
@@ -56,7 +57,6 @@ __all__ = [
     "IngestionStatus",
     "PenetrationConfig",
     "Predicate",
-    "RATIO_SCALE",
     "RatioError",
     "RatioUnit",
     "ReviewKind",

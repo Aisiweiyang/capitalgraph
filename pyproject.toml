@@ -43,11 +43,12 @@ src = ["packages", "apps", "workers", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
-ignore = ["E501"]
+# RUF001/002/003：中文全角标点在中文注释/文档串中是正常用法，非同形字攻击
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q --basetemp=./data/pytest-tmp"
 asyncio_mode = "auto"
 markers = [
     "integration: 跨模块集成测试",

@@ -81,9 +81,7 @@ class EntityRepository:
                 )
             )
             return
-        self.session.add(
-            EntityIdentifier(entity_id=entity_id, namespace=namespace, value=value)
-        )
+        self.session.add(EntityIdentifier(entity_id=entity_id, namespace=namespace, value=value))
         await self.session.flush()
 
     async def add_alias(
@@ -200,9 +198,7 @@ class EntityRepository:
         return list(rows.scalars().all())
 
     async def securities(self, entity_id: str) -> list[Security]:
-        rows = await self.session.execute(
-            select(Security).where(Security.entity_id == entity_id)
-        )
+        rows = await self.session.execute(select(Security).where(Security.entity_id == entity_id))
         return list(rows.scalars().all())
 
     async def neighbours(self, entity_id: str) -> dict[str, list[Statement]]:
