@@ -20,7 +20,7 @@
 工作目录初始盘点为空，但开发开始后（2026-09-07 23:08 起）检测到**另一并行会话在同一父目录**
 搭建 AshareSignal Lab（A 股情绪量化研究项目，`asg-*` 包，见父级 `pyproject.toml` 与 `uv.lock`）。
 为遵守"保留用户已有成果、不擅自覆盖"规则并避免两个 uv workspace 互相破坏，
-CapitalGraph CN 改在独立子目录 `capitalgraph/` 内实施（见 ADR-010），父目录其余文件一律未改动。
+CapitalGraph CN 改在独立子目录 `资本图谱/` 内实施（见 ADR-010），父目录其余文件一律未改动。
 
 ## 阶段计划与状态
 

@@ -1,6 +1,6 @@
 # 交付说明（DELIVERY）
 
-交付日期：2026-09-08 ｜ 版本 0.1.0 ｜ 全部交付物位于 `capitalgraph/` 子目录（ADR-010）
+交付日期：2026-09-08 ｜ 版本 0.1.0 ｜ 全部交付物位于 `资本图谱/` 子目录（ADR-010）
 
 ## 1. 架构与取舍（详见 ARCHITECTURE.md 与 docs/DECISIONS.md）
 
@@ -50,7 +50,7 @@ neo4j（GPL-3.0）未引入未链接。SBOM：`SBOM.cdx.json`（110 组件）。
 ## 5. 启动与演示最短步骤（本机实测命令）
 
 ```bash
-cd capitalgraph
+cd 资本图谱
 
 # 后端（无需 Docker）
 uv sync
