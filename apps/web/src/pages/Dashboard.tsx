@@ -139,6 +139,9 @@ export function DashboardPage() {
               <Link to="/explore">股权穿透图</Link>
             </li>
             <li>
+              <Link to="/flows">资本流动地图</Link>
+            </li>
+            <li>
               <Link to="/review">人工复核队列（{stats.review_open} 项待处理）</Link>
             </li>
           </ul>

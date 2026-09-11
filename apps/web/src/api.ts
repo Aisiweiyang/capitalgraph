@@ -180,6 +180,65 @@ export interface StatsOut {
   } | null;
 }
 
+export interface RegionFlowRow {
+  from_region: string;
+  to_region: string;
+  edge_count: number;
+  amount_edges: number;
+  amount_wan: number | null;
+  total_share_percent: number | null;
+  ratio_missing_edges: number;
+}
+
+export interface RegionSummaryRow {
+  region: string;
+  inflow_wan: number;
+  outflow_wan: number;
+  net_wan: number;
+  outflow_edges: number;
+  inflow_edges: number;
+}
+
+export interface FlowsSummaryOut {
+  regions: RegionSummaryRow[];
+  hhi: number | null;
+  flow_count: number;
+  internal_edges: number;
+  unknown_region_edges: number;
+  total_cross_amount_wan: number;
+  cycles: {
+    cycle_count: number;
+    cross_region_cycle_edges: number;
+    cross_region_cycle_amount_edges: number;
+  };
+  at: string | null;
+}
+
+export interface IndustryFlowRow {
+  from_region: string;
+  industry: string;
+  edge_count: number;
+  amount_wan: number;
+}
+
+export interface TimelineRow {
+  year: number;
+  edge_count: number;
+  amount_wan: number;
+  amount_missing_edges: number;
+}
+
+export interface RegionEntitiesOut {
+  region_code: string;
+  count: number;
+  entities: {
+    id: string;
+    kind: string;
+    primary_name: string;
+    industry: string | null;
+  }[];
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>("/auth/login", {
@@ -188,6 +247,31 @@ export const api = {
     }),
 
   stats: () => request<StatsOut>("/stats"),
+
+  flowsRegions: (params: { at?: string; min_amount_wan?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params.at) qs.set("at", params.at);
+    if (params.min_amount_wan) qs.set("min_amount_wan", params.min_amount_wan);
+    if (params.limit) qs.set("limit", String(params.limit));
+    const query = qs.toString();
+    return request<{ at: string | null; count: number; flows: RegionFlowRow[] }>(
+      `/flows/regions${query ? `?${query}` : ""}`,
+    );
+  },
+
+  flowsSummary: (at?: string) =>
+    request<FlowsSummaryOut>(`/flows/summary${at ? `?at=${at}` : ""}`),
+
+  flowsIndustries: (at?: string) =>
+    request<{ at: string | null; rows: IndustryFlowRow[]; missing_industry_edges: number }>(
+      `/flows/industries${at ? `?at=${at}` : ""}`,
+    ),
+
+  flowsTimeline: (at?: string) =>
+    request<{ at: string | null; timeline: TimelineRow[] }>(`/flows/timeline${at ? `?at=${at}` : ""}`),
+
+  entitiesByRegion: (code: string, limit = 50) =>
+    request<RegionEntitiesOut>(`/entities/by-region/${code}?limit=${limit}`),
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),

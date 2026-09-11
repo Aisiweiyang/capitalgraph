@@ -1,6 +1,6 @@
 # CapitalGraph CN 数据模型
 
-版本：0.2 ｜ 2026-09-11 ｜ 与 `packages/domain` 实现保持同步
+版本：0.3 ｜ 2026-09-12 ｜ 与 `packages/domain` 实现保持同步
 
 ## 模型总览（分层）
 
@@ -38,7 +38,7 @@ graph TB
 
 | 表 | 说明 | 关键列 |
 | --- | --- | --- |
-| entities | 企业/自然人/基金/合伙/机构/政府或国资机构/证券/分支机构 | id, kind, primary_name_id, created_at, merged_into_id(疑似重复/合并) |
+| entities | 企业/自然人/基金/合伙/机构/政府或国资机构/证券/分支机构 | id, kind, primary_name_id, created_at, merged_into_id(疑似重复/合并), region_code(6位行政区划，可空，索引), industry(可空，索引) |
 | entity_identifiers | 外部 ID，一律带命名空间 | entity_id, namespace(uscc/lei/ticker/src:<connector>), value, valid_from/to |
 | name_aliases | 名称与曾用名 | entity_id, name, norm_name, alias_type(official/former/abbreviation/translation), lang, valid_from/to |
 | securities | 证券与主体关联 | entity_id, code, exchange, security_type |

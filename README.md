@@ -1,7 +1,7 @@
 # CapitalGraph CN
 
 [![CI](https://github.com/Aisiweiyang/capitalgraph-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/Aisiweiyang/capitalgraph-cn/actions/workflows/ci.yml)
-面向中国企业研究的资本关系、股权穿透、实际控制候选识别、历史变更追踪与证据可视化平台。
+面向中国企业研究的资本关系、股权穿透、实际控制候选识别、历史变更追踪、跨区域资本流动与证据可视化平台。
 
 > 研究工具。所有穿透与 UBO 结果均为**候选**并附证据与算法假设，不构成法律认定或投资建议。
 
@@ -50,6 +50,13 @@ uv run pytest
 - [OSS_EVALUATION.md](docs/OSS_EVALUATION.md) 开源调研
 - [TEST_REPORT.md](docs/TEST_REPORT.md) / [DELIVERY.md](docs/DELIVERY.md) 测试与交付证据
 - [MIGRATION.md](docs/MIGRATION.md) 整体迁移与单模块抽取指南
+
+## 功能亮点
+
+- **股权穿透**：向上/向下多层穿透、环路/交叉持股检测、聚合有效权益、UBO 候选（R1/R2），全部附证据链与算法假设
+- **资本流动（v0.3）**：省际投资流向地图（choropleth + 流向线）、区域排名、省份→行业桑基、年度趋势；
+  流动性指标（净流入/流出、HHI 集中度、环路资金）；支持时点切换与金额/笔数口径
+- **证据优先**：声明 + 证据链（document→snapshot(sha256)→fragment），原始层只追加，时点查询不改写历史
 
 ## 目录
 

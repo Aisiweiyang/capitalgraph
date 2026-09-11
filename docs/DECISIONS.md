@@ -91,3 +91,32 @@
   不一致即退出非零；CI 后端任务在测试前运行。ARCHITECTURE/DATA_MODEL 增加 Mermaid 图（GitHub 原生渲染），
   新增 MIGRATION.md 记录整体迁移与单模块抽取路径。
 - 代价：新增一道 CI 检查（秒级）；收益：依赖声明与代码事实持续一致，模块可迁移性可验证而非口头承诺。
+
+## ADR-013 图表与中国地图：ECharts 5.6（Apache-2.0），GeoJSON 内置（2026-09-12，已采纳）
+
+- 背景：v0.3 需要中国省级行政区划着色（choropleth）、省际流向线、桑基与常规统计图表。
+- 决策：采用 Apache ECharts。按需引入 `echarts/core` + Map/Lines/Line/Bar/Sankey 图型 +
+  Geo/VisualMap/Tooltip/Grid/Legend 组件 + CanvasRenderer，控制打包体积。地图 GeoJSON 取自
+  DataV.GeoAtlas（areas_v3/100000_full.json，2026-09-12），一次性内置为
+  `apps/web/src/assets/china.json`，运行时零外部地图服务依赖。
+- 版本：实测 v6.1.0 中 `lines` 系列（geo 坐标系）与增量渲染层在离屏/后台标签场景不刷新，
+  且 v6 默认主题与坐标系统架构变化大；钉在 v5.6.0（同一套按需引入 API）。升级 v6 的条件：
+  上游确认修复 lines-on-geo + 增量层导出问题并通过本仓库可视化回归（含离屏导出）。
+- 已知坑（记入代码注释）：lines 的颜色必须放在数据项级 lineStyle.color，series 级 color
+  不传导；lines/sankey 需 `animation:false`/`progressive:0` 避免动画进度停 0% 不绘制。
+- 代价：echarts 使前端产物增重约 330KB(gzip ~110KB)；收益：一个库覆盖全部图表需求且中文文档完善。
+- 合规：地图数据仅研究演示用途；正式出版物须使用自然资源部标准地图服务（审图号）数据（MAP_DATA_SOURCE.md）。
+
+## ADR-014 区域资本流动聚合口径（2026-09-12，已采纳）
+
+- 范围：流动=资本放置类声明（holds_shares/invests_in）；controls 是治理关系，不计入流动。
+- 时点：仅统计 status=active 且 `valid_from <= at < valid_to` 的声明（仓储 flow_rows 过滤）。
+- 跨省判定：subject 与 object 均有 region_code 且不相等；任一方缺失 → 丢弃并以
+  unknown_region_edges 显式计数；同省边计入 internal_edges，不进流向。
+- 金额：只使用结构化 amount_scaled（万元×100 缩放整数，AMOUNT_SCALE）；缺失金额的边计入
+  边数与 amount_missing_edges，不计入金额合计，绝不补值。字符串 amount 列仅为来源原始记录。
+- 比例：total_share_percent 为直接持股比例求和（百分数），缺失边计入 ratio_missing_edges；
+  聚合有效权益仍属穿透分析（capital_graph.analysis），流动层不做路径乘积。
+- HHI：各省流出金额份额（百分点）平方和，0..10000；流出总额为 0 时输出 None。
+- 环路资金：复用 capital_graph.detect_cycles，统计环路中跨省边数与其中有金额边数。
+- 依赖：全部为 cg-capital-graph 纯函数（flows.py），零新增后端依赖；networkx 暂不引入。

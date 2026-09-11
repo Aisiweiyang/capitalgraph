@@ -53,9 +53,7 @@ async def _load_flow_edges(repo: Repo, at: date | None) -> tuple[list[FlowEdge],
     return [e for e in all_edges if e.from_region != e.to_region], all_edges
 
 
-async def _industry_pairs(
-    repo: Repo, edges: list[FlowEdge]
-) -> list[tuple[FlowEdge, str | None]]:
+async def _industry_pairs(repo: Repo, edges: list[FlowEdge]) -> list[tuple[FlowEdge, str | None]]:
     industry_by_entity: dict[str, str | None] = dict(
         (await repo.session.execute(select(Entity.id, Entity.industry))).all()
     )

@@ -1,6 +1,6 @@
 # 交付说明（DELIVERY）
 
-交付日期：2026-09-08（v0.1.0）｜ 2026-09-11 增量 v0.2：文档收敛 docs/、总览仪表板、模块边界 CI 强制、迁移指南（ADR-011/012） ｜ 全部交付物位于 `资本图谱/` 子目录（ADR-010）
+交付日期：2026-09-08（v0.1.0）｜ v0.2（2026-09-11）：文档收敛 docs/、总览仪表板、模块边界 CI 强制、迁移指南（ADR-011/012）｜ v0.3（2026-09-12）：区域资本流动研究层——流动地图/流向线/桑基/趋势 + 流动性指标（ADR-013/014） ｜ 全部交付物位于 `资本图谱/` 子目录（ADR-010）
 
 ## 1. 架构与取舍（详见 ARCHITECTURE.md 与 docs/DECISIONS.md）
 
@@ -26,6 +26,9 @@
 | RBAC（admin/analyst/viewer 默认拒绝）+ JWT + argon2id + 审计 + 限流 + 安全头 | `apps/api/src/cg_api/auth.py、ratelimit.py、main.py` |
 | 图可视化：展开/收起、层数/阈值/方向/时间点、环路标红、UBO 标注、路径高亮、PNG/CSV 导出、超大图降级、动态实体类型图例与规模统计 | `apps/web/src/`（components/GraphCanvas.tsx、pages/Explore.tsx 等） |
 | 数据总览仪表板：实体/声明/来源/复核/运行统计卡 + 类型/关系/年份/状态分布图表（纯 SVG，零新增依赖） | `apps/web/src/pages/Dashboard.tsx` + `routers/stats.py` |
+| **资本流动研究层（v0.3）**：省际流向聚合（金额/笔数/有效权益、缺失显式计数）、区域流动性指标（净流入流出/HHI/环路资金/年度趋势）、省份→行业桑基 | `packages/capital_graph/src/cg_capital_graph/flows.py`、`apps/api/src/cg_api/routers/flows.py`、`routers/entities.py`(by-region) |
+| 流动可视化：ECharts 中国地图 choropleth + 省际流向线（权重可切换）+ 排名/桑基/趋势图 + 省份下钻（明细与主体列表） | `apps/web/src/pages/Flows.tsx`、`components/EChart.tsx`、`assets/china.json`（来源声明见 assets/MAP_DATA_SOURCE.md） |
+| 数据维度：entities.region_code/industry、statements.amount_scaled（万元×100 缩放整数），双方言迁移 | `packages/domain`（orm/models/repo）、`migrations/versions/a7c31e5b8d20_*` |
 | 复核队列 + 质量问题 + 管理端（用户/审计/连接器） | `apps/web/src/pages/Review.tsx、Admin.tsx` + `routers/ops.py` |
 | 迁移（含 ownership/control 视图，upgrade/downgrade 回环验证） | `migrations/` |
 | 基础设施：Compose、Dockerfile、备份脚本、CI、SBOM、秘密扫描 | `infra/`、`scripts/`、`.github/workflows/ci.yml`、`docs/SBOM.cdx.json` |
@@ -34,8 +37,8 @@
 
 | 项 | 结果 |
 | --- | --- |
-| `uv run pytest tests --cov` | **64 passed**，退出码 0，TOTAL **89.3%** |
-| `npm test`（vitest） | **3 passed**，退出码 0 |
+| `uv run pytest tests --cov` | **80 passed**，退出码 0，TOTAL **89.9%**（v0.3） |
+| `npm test`（vitest） | **8 passed**，退出码 0（v0.3） |
 | `npx playwright test` | **8 passed**，退出码 0 |
 | bandit / pip-audit / npm audit / secret_scan | 0 高危项；dev 链路余 2 moderate（已记录） |
 | 性能 | 2990 边穿透 p95 2.4ms；500 节点环 28.8ms；错误率 0；确定性 ✓ |

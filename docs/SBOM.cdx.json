@@ -15,7 +15,7 @@
         "name": "scripts/sbom.py"
       }
     ],
-    "timestamp": "2026-09-11T15:40:06.133347+00:00"
+    "timestamp": "2026-09-11T17:13:10.141184+00:00"
   },
   "components": [
     {
@@ -131,6 +131,12 @@
       "name": "dunder-proto",
       "version": "1.0.1",
       "purl": "pkg:npm/dunder-proto@1.0.1"
+    },
+    {
+      "type": "library",
+      "name": "echarts",
+      "version": "5.6.0",
+      "purl": "pkg:npm/echarts@5.6.0"
     },
     {
       "type": "library",
@@ -377,6 +383,12 @@
       "name": "why-is-node-running",
       "version": "2.3.0",
       "purl": "pkg:npm/why-is-node-running@2.3.0"
+    },
+    {
+      "type": "library",
+      "name": "zrender",
+      "version": "5.6.1",
+      "purl": "pkg:npm/zrender@5.6.1"
     },
     {
       "type": "library",

@@ -25,3 +25,16 @@
 
 见 `THIRD_PARTY_NOTICES.md`（随依赖锁定生成）。当前运行时采用：`cytoscape.js`（MIT）。
 其余为模式借鉴，无代码复制；若后续出现代码级改编，按提示词 §3 记录仓库、commit、文件、许可证与修改。
+
+## v0.3 增量调研（2026-09-12，资本流动与地图可视化）
+
+核实方式：WebSearch（官方站/GitHub）、npm 安装实测。结论：
+
+| 仓库/资源 | 许可证 | 版本/核实 | 采用结论 |
+| --- | --- | --- | --- |
+| apache/echarts | Apache-2.0 | v6.1.0（官方站/releases，2026-09-12 核实）；实际安装 5.6.0 | **采用（图表+中国地图）**。按需引入 echarts/core。v6 实测发现 lines-on-geo/增量层在离屏场景不刷新的兼容风险，故钉在久经考验的 v5.6.0（同一套按需引入 API，迁移成本零）；v6 触发回归后可升（ADR-013） |
+| DataV.GeoAtlas（阿里云） | 公开地图数据（non-商业演示） | areas_v3 100000_full.json，2026-09-12 下载 | **采用（内置）**：`apps/web/src/assets/china.json`（35 要素含港澳台）。见 assets/MAP_DATA_SOURCE.md 来源与合规声明；正式出版须换用自然资源部标准地图（审图号） |
+| antvis/G6 | MIT | v5（LICENSE 核实） | **借鉴不引入**：股权穿透场景的布局/组合/插件设计是 Cytoscape 图的演进参考；触发条件记于 ADR-013 |
+| networkx/networkx | BSD-3-Clause | 3.6.1（2025-11 release） | **暂不引入**：度中心度/HHI 等在 cg-capital-graph 纯函数自研（符合 ADR-002 零依赖图计算）；需要中介中心性/最大流且规模超阈值时再评估（ADR-014） |
+| OpenSPG（Ant Group × OpenKG） | Apache-2.0（工程庞大） | 2026-09-12 核实 | 仅参考其金融领域知识图谱建模思路；不引入 |
+| jm199504/Financial-Knowledge-Graphs | 教学项目 | 2026-09-12 核实 | 参考其金融 KG 构建流程叙述；无代码采用 |

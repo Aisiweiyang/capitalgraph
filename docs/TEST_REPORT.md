@@ -103,3 +103,22 @@
 | （历史）`scripts/` 未纳入 ruff | CI 仅检查四目录 | 本地已全量修复并纳入 |
 
 最终结果：**backend ✓ + frontend ✓（run 34618296805）**，徽章绿。
+
+## 10. v0.3 增量（2026-09-12：资本流动与地图可视化）
+
+| 项 | 命令 | 结果 |
+| --- | --- | --- |
+| 后端全量 | `uv run pytest tests --cov` | **80 passed**，TOTAL **89.9%**（新增 flows 纯函数 10 项 + /flows API 4 项 + by-region 1 项，含既有回归） |
+| 前端组件 | `cd apps/web && npm test` | **8 passed**（新增 FlowsPage 2 项） |
+| 前端构建 | `npm run build`（tsc strict） | 成功 |
+| E2E | `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **8 passed**（8300 被同机另一项目占用，新增 CG_API_PROXY 代理覆盖能力） |
+| 模块边界 | `uv run python scripts/module_graph.py` | 通过（flows.py 归属 cg-capital-graph，无新依赖） |
+| bandit / 秘密扫描 | `uvx bandit -q -r …` / `scripts/secret_scan.py` | 0 高危 / 通过 |
+| 可视化验证 | 浏览器实测 /flows + 图表 canvas 像素采样 + getDataURL 导出审阅 | 地图 choropleth 着色正确、33 条省际流向线绘制、排名/趋势/桑基出图；截图脚本另存 `getDataURL` 导出核验 |
+
+### 调试记录（如实验证）
+
+1. **桑基/流向线离屏不刷新**：lines/sankey 走 zrender 增量渲染层，后台标签页 rAF 节流时动画停在 0%。
+   修复：lines `animation:false`，lines/sankey `progressive:0`（ADR-013 记录，注释入代码）。
+2. **lines 颜色不生效**：series 级 `lineStyle.color` 不传导至线元素，需放在数据项级 `lineStyle.color`。
+3. **ECharts 6.1.0 → 5.6.0**：v6 中 lines-on-geo 同场景复现不绘制，钉在 v5.6.0（ADR-013）。

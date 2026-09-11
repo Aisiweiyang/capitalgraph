@@ -7,7 +7,8 @@ export default defineConfig({
     port: 5273,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8300",
+        // 同机并行运行其他项目（默认占用 8300）时可用 CG_API_PROXY 覆盖
+        target: process.env.CG_API_PROXY ?? "http://127.0.0.1:8300",
         changeOrigin: true,
       },
     },

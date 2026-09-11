@@ -81,16 +81,20 @@ async def entities_by_region(
 ):
     """某省级行政区划下的主体（地图下钻）。仅返回活跃（未合并）主体。"""
     rows = (
-        await repo.session.execute(
-            select(Entity)
-            .where(
-                Entity.region_code == code,
-                Entity.merged_into_id.is_(None),
+        (
+            await repo.session.execute(
+                select(Entity)
+                .where(
+                    Entity.region_code == code,
+                    Entity.merged_into_id.is_(None),
+                )
+                .order_by(Entity.primary_name)
+                .limit(limit)
             )
-            .order_by(Entity.primary_name)
-            .limit(limit)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return {
         "region_code": code,
         "count": len(rows),

@@ -1,6 +1,6 @@
 # CapitalGraph CN 架构
 
-版本：0.2 ｜ 2026-09-11
+版本：0.3 ｜ 2026-09-12
 
 ## 总体形态
 
@@ -76,6 +76,14 @@ graph LR
                              │ workers        │ 采集/重算 任务(幂等,退避)
                              └────────────────┘
 ```
+
+## 资本流动层（v0.3）
+
+在声明模型之上新增只读聚合层：`cg_capital_graph.flows` 纯函数 + `/api/v1/flows/*` 路由 +
+前端「资本流动」页（ECharts 中国地图 choropleth + 省际流向线 + 排名/桑基/趋势图）。
+口径（ADR-014）：流动 = holds_shares/invests_in 的时点有效声明；金额只用 amount_scaled 缩放整数；
+缺失计数显式输出（unknown_region_edges / amount_missing_edges），绝不补值。
+区域流动性指标：各省流入/流出/净额、流出集中度 HHI、环路资金（复用 detect_cycles）、年度趋势。
 
 ## 模块职责
 
