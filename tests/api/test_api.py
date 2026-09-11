@@ -256,3 +256,22 @@ def test_admin_create_user_and_login(api, auth):
         headers=auth["admin"],
     )
     assert weak.status_code == 422
+
+
+def test_stats_overview_aggregates(api, auth, seeded):
+    resp = api.get("/api/v1/stats", headers=auth["viewer"])
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["entities_total"] >= 12
+    assert body["statements_total"] > 0
+    # 分布计数与总量自洽
+    assert sum(body["entities_by_kind"].values()) == body["entities_total"]
+    assert sum(body["statements_by_predicate"].values()) == body["statements_total"]
+    assert sum(body["statements_by_year"].values()) == body["statements_total"]
+    assert body["sources_total"] > 0
+    assert body["runs_total"] >= 1
+    assert body["last_run"]["connector_id"] == "synthetic"
+
+
+def test_stats_requires_auth(api):
+    assert api.get("/api/v1/stats").status_code == 401

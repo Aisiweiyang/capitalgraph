@@ -160,12 +160,34 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await resp.json()) as T;
 }
 
+export interface StatsOut {
+  entities_total: number;
+  entities_by_kind: Record<string, number>;
+  statements_total: number;
+  statements_by_predicate: Record<string, number>;
+  statements_by_status: Record<string, number>;
+  statements_by_year: Record<string, number>;
+  sources_total: number;
+  snapshots_total: number;
+  review_open: number;
+  runs_total: number;
+  runs_failed: number;
+  last_run: {
+    connector_id: string;
+    status: string;
+    started_at: string;
+    finished_at: string | null;
+  } | null;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+
+  stats: () => request<StatsOut>("/stats"),
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),

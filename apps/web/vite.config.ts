@@ -16,5 +16,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
+    // 仅跑单元测试；Playwright E2E 由 npx playwright test 单独执行
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
 });

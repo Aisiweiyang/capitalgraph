@@ -101,3 +101,33 @@ a { color: var(--accent); }
 @media (max-width: 900px) {
   .explore-layout { grid-template-columns: 1fr; }
 }
+
+/* ---- 数据总览仪表板 ---- */
+.stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 12px 0; }
+.stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: block; color: var(--ink); text-decoration: none; }
+.stat-card.linked:hover { border-color: var(--accent); box-shadow: 0 1px 6px rgba(47,111,228,.12); }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.stat-label { font-size: 13px; color: var(--ink); margin-top: 2px; }
+
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.chart-grid.single { grid-template-columns: 1fr; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.chart-panel h4 { margin-top: 0; }
+
+.hbar-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.hbar-list li { display: grid; grid-template-columns: 110px 1fr 44px; align-items: center; gap: 8px; margin: 6px 0; }
+.hbar-label { font-size: 12px; color: var(--ink); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hbar-track { background: #edf2f8; border-radius: 4px; height: 14px; overflow: hidden; display: block; }
+.hbar-fill { display: block; height: 100%; background: linear-gradient(90deg, #5b8def, var(--accent)); border-radius: 4px; }
+.hbar-num { font-size: 12px; color: var(--muted); text-align: right; }
+
+.vbar-svg { display: block; max-width: 100%; margin: 0 auto; }
+.vbar-num { font-size: 10px; fill: var(--muted); }
+.vbar-label { font-size: 11px; fill: var(--ink); }
+
+.quick-links { list-style: none; padding: 0; margin: 8px 0 0; }
+.quick-links li { margin: 10px 0; }
+
+@media (max-width: 900px) {
+  .chart-grid { grid-template-columns: 1fr; }
+}

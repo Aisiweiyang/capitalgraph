@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
 import type { PenetrationResult } from "../api";
+import { kindLabel } from "../pages/Search";
 
 const KIND_COLOR: Record<string, string> = {
   person: "#e8a13c",
@@ -32,6 +33,11 @@ export function GraphCanvas({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
+  const [summary, setSummary] = useState<{ nodes: number; edges: number; kinds: string[] }>({
+    nodes: 0,
+    edges: 0,
+    kinds: [],
+  });
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -173,6 +179,12 @@ export function GraphCanvas({
       onNodeOpen?.(evt.target.id());
     });
 
+    setSummary({
+      nodes: nodes.length,
+      edges: edgeMap.size,
+      kinds: [...new Set(nodes.map((n) => String(n.data.kind ?? "")))].filter(Boolean),
+    });
+
     cyRef.current = cy;
     if (handlesRef) handlesRef.current = {
       exportPng: () => {
@@ -202,6 +214,12 @@ export function GraphCanvas({
     <div className="graph-wrap">
       <div ref={containerRef} className="graph-canvas" data-testid="graph-canvas" />
       <div className="graph-legend">
+        {summary.kinds.map((kind) => (
+          <span key={kind}>
+            <i className="dot" style={{ background: KIND_COLOR[kind] ?? "#5b8def" }} />{" "}
+            {kindLabel(kind)}
+          </span>
+        ))}
         <span>
           <i className="dot" style={{ background: "#e8a13c" }} /> UBO 候选
         </span>
@@ -210,6 +228,9 @@ export function GraphCanvas({
         </span>
         <span>
           <i className="dot dashed" /> 控制声明（虚线）
+        </span>
+        <span className="muted" data-testid="graph-summary">
+          {summary.nodes} 实体 · {summary.edges} 关系
         </span>
         <span className="muted">双击节点以其为根重新穿透</span>
       </div>
