@@ -1,4 +1,6 @@
 # CapitalGraph CN
+
+[![CI](https://github.com/Aisiweiyang/capitalgraph-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/Aisiweiyang/capitalgraph-cn/actions/workflows/ci.yml)
 面向中国企业研究的资本关系、股权穿透、实际控制候选识别、历史变更追踪与证据可视化平台。
 
 > 研究工具。所有穿透与 UBO 结果均为**候选**并附证据与算法假设，不构成法律认定或投资建议。
