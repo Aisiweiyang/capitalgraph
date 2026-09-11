@@ -38,6 +38,18 @@ class EdgeRow:
     voting_ratio_scaled: int | None
 
 
+@dataclass(frozen=True)
+class FlowRow:
+    """流动聚合输入行：时点有效的持股/投资声明，附结构化金额。"""
+
+    statement_id: str
+    subject_id: str
+    object_id: str
+    share_ratio_scaled: int | None
+    amount_scaled: int | None
+    valid_from: date
+
+
 class StatementRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -170,6 +182,7 @@ class StatementRepository:
             share_class=record.share_class,
             amount=record.amount,
             currency=record.currency,
+            amount_scaled=record.amount_scaled,
             valid_from=record.valid_from,
             valid_to=record.valid_to,
             recorded_at=record.recorded_at or datetime.now().astimezone(),
@@ -239,6 +252,28 @@ class StatementRepository:
             )
         )
         return [EdgeRow(*row) for row in rows.all()]
+
+    async def flow_rows(
+        self, at: date | None = None, predicates: tuple[str, ...] = ("holds_shares", "invests_in")
+    ) -> list[FlowRow]:
+        """流动聚合输入行：某时点有效的持股/投资声明（左闭右开），附金额与年度。"""
+        at_date = at or date.today()
+        rows = await self.session.execute(
+            select(
+                Statement.id,
+                Statement.subject_id,
+                Statement.object_id,
+                Statement.share_ratio_scaled,
+                Statement.amount_scaled,
+                Statement.valid_from,
+            ).where(
+                Statement.status == StatementStatus.ACTIVE.value,
+                Statement.predicate.in_(list(predicates)),
+                Statement.valid_from <= at_date,
+                or_(Statement.valid_to.is_(None), Statement.valid_to > at_date),
+            )
+        )
+        return [FlowRow(*row) for row in rows.all()]
 
     async def statement_history(self, subject_id: str, object_id: str) -> list[Statement]:
         rows = (

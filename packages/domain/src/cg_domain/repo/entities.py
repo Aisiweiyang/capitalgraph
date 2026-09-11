@@ -35,6 +35,8 @@ class EntityRepository:
             kind=record.kind.value,
             primary_name=record.name,
             primary_norm_name=record.norm_name,
+            region_code=record.region_code,
+            industry=record.industry,
         )
         self.session.add(entity)
         await self.session.flush()

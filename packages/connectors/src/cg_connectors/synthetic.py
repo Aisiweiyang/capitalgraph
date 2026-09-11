@@ -21,6 +21,7 @@ from cg_domain.models import (
     StatementRecord,
 )
 from cg_domain.normalization import is_valid_uscc
+from cg_domain.regions import INDUSTRIES, PROVINCES
 
 from cg_connectors.base import (
     BaseConnector,
@@ -37,6 +38,17 @@ _CITY = "北京上海深圳广州杭州成都武汉南京西安重庆苏州天�
 _SUFFIX = ("有限公司", "股份有限公司")
 
 _BATCH = 400
+
+# 省份抽样权重：沿海/经济活跃省份更高，形成有结构的（而非均匀噪声的）跨区域流动演示
+_REGION_WEIGHTS = tuple(
+    8 if code in ("110000", "310000", "440000", "330000", "320000", "500000") else 3
+    for code, _, _ in PROVINCES
+)
+
+
+def _registered_capital_wan(rng: random.Random) -> float:
+    """虚构注册资本（万元）：对数均匀分布，覆盖小微企业到大型企业量级。"""
+    return round(10 ** rng.uniform(2.0, 5.7), 2)
 
 
 def _fake_uscc(rng: random.Random) -> str:
@@ -134,6 +146,7 @@ class SyntheticConnector(BaseConnector):
                     break
             uscc = _fake_uscc(rng)
             kind = EntityKind.LISTED_COMPANY if i < 3 else EntityKind.COMPANY
+            province = rng.choices(PROVINCES, weights=_REGION_WEIGHTS, k=1)[0]
             record = EntityRecord(
                 connector_id="synthetic",
                 external_id=f"C{i:04d}",
@@ -142,6 +155,8 @@ class SyntheticConnector(BaseConnector):
                 uscc=uscc,
                 ticker=f"{600000 + i * 7:06d}" if kind is EntityKind.LISTED_COMPANY else None,
                 exchange="SSE" if kind is EntityKind.LISTED_COMPANY else None,
+                region_code=province[0],
+                industry=rng.choice(INDUSTRIES),
             )
             if not is_valid_uscc(uscc):  # 生成器不变量：确定性种子也不得产出非法 USCC
                 raise ValueError(f"synthetic generator produced invalid USCC: {uscc}")
@@ -152,12 +167,14 @@ class SyntheticConnector(BaseConnector):
         persons: list[EntityRecord] = []
         for i in range(n_persons):
             name = rng.choice(_SURNAMES) + rng.choice(_GIVEN) + rng.choice(_GIVEN)
+            province = rng.choices(PROVINCES, weights=_REGION_WEIGHTS, k=1)[0]
             persons.append(
                 EntityRecord(
                     connector_id="synthetic",
                     external_id=f"P{i:04d}",
                     kind=EntityKind.PERSON,
                     name=name,
+                    region_code=province[0],
                 )
             )
         entities.extend(persons)
@@ -194,6 +211,7 @@ class SyntheticConnector(BaseConnector):
                         valid_from=base_date,
                         share_ratio=ratio,
                         ratio_unit=RatioUnit.PERCENT,
+                        amount_wan=_registered_capital_wan(rng),
                         confidence=1.0,
                         claim_basis=ClaimBasis.NORMALIZED,
                         evidence=evidence(f"shareholders[{idx}][{j}].ratio", f"{ratio:.2f}%"),
@@ -227,6 +245,7 @@ class SyntheticConnector(BaseConnector):
                     valid_from=base_date,
                     share_ratio=ratio,
                     ratio_unit=RatioUnit.PERCENT,
+                    amount_wan=_registered_capital_wan(rng),
                     evidence=evidence(f"equity[{i}].ratio", f"{ratio:.2f}%"),
                 )
             )

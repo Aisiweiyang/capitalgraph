@@ -31,6 +31,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # 比例缩放：1e8 = 100%。整数运算保证跨数据库确定性。
 RATIO_SCALE = 10**8
+# 金额缩放：存 万元×100（0.01 万元分辨率），与比例同款缩放整数策略；NULL=来源未给出
+AMOUNT_SCALE = 10**2
 
 
 def new_id() -> str:
@@ -61,6 +63,9 @@ class Entity(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     note: Mapped[str] = mapped_column(Text, default="")
+    # 区域（6 位行政区划代码，省级聚合并保留区县级扩展空间）与行业维度，可空；标准化层填充
+    region_code: Mapped[str | None] = mapped_column(String(6), nullable=True, index=True)
+    industry: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
 
 class EntityIdentifier(Base):
@@ -136,6 +141,8 @@ class Statement(Base):
     share_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
     amount: Mapped[str | None] = mapped_column(String(64), nullable=True)
     currency: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    # 结构化金额（AMOUNT_SCALE 缩放整数）；amount 字符串列为来源原始记录，聚合只允许用本列
+    amount_scaled: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     # 时态：左闭右开 [valid_from, valid_to)；recorded_at 与有效区间分离
     valid_from: Mapped[str] = mapped_column(Date)

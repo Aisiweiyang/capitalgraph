@@ -6,9 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from cg_domain.repo.entities import EntityRepository
 from cg_domain.repo.ops import OpsRepository
-from cg_domain.repo.statements import EdgeRow, StatementRepository
+from cg_domain.repo.statements import EdgeRow, FlowRow, StatementRepository
 
-__all__ = ["EdgeRow", "EntityRepository", "OpsRepository", "Repository", "StatementRepository"]
+__all__ = [
+    "EdgeRow",
+    "EntityRepository",
+    "FlowRow",
+    "OpsRepository",
+    "Repository",
+    "StatementRepository",
+]
 
 
 class Repository(EntityRepository, StatementRepository, OpsRepository):

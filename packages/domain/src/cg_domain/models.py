@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from cg_domain.enums import ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
 from cg_domain.errors import RatioError, ValidationError
 from cg_domain.normalization import normalize_name
-from cg_domain.orm import RATIO_SCALE
+from cg_domain.orm import AMOUNT_SCALE, RATIO_SCALE
 
 EntityKeyNamespace = Literal["uscc", "lei", "ticker", "src"]
 # 实体外部键：namespace:value，例如 "uscc:91110000XXXXXXXXXX" / "src:synthetic:E001"
@@ -58,6 +58,8 @@ class EntityRecord(BaseModel):
     ticker: str | None = None
     exchange: str | None = None
     valid_from: date | None = None
+    region_code: str | None = None
+    industry: str | None = None
 
     @property
     def norm_name(self) -> str:
@@ -101,6 +103,7 @@ class StatementRecord(BaseModel):
     share_class: str | None = None
     amount: str | None = None
     currency: str | None = None
+    amount_wan: float | None = Field(default=None, ge=0.0)
 
     claim_basis: ClaimBasis = ClaimBasis.NORMALIZED
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -120,7 +123,16 @@ class StatementRecord(BaseModel):
             ratio_to_scaled(self.share_ratio, self.ratio_unit)
         if self.voting_ratio is not None:
             ratio_to_scaled(self.voting_ratio, self.ratio_unit)
+        if self.amount_wan is not None and self.amount_wan != self.amount_wan:
+            raise ValidationError("金额不能为 NaN")
         return self
+
+    @property
+    def amount_scaled(self) -> int | None:
+        """万元 → 万元×100 缩放整数。None 表示来源未给出，保持 unknown。"""
+        if self.amount_wan is None:
+            return None
+        return round(self.amount_wan * AMOUNT_SCALE)
 
     @property
     def share_ratio_scaled(self) -> int | None:

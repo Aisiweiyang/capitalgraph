@@ -275,3 +275,37 @@ def test_stats_overview_aggregates(api, auth, seeded):
 
 def test_stats_requires_auth(api):
     assert api.get("/api/v1/stats").status_code == 401
+
+
+def test_flows_regions_aggregates_seeded_data(api, auth, seeded):
+    resp = api.get("/api/v1/flows/regions", headers=auth["viewer"])
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] > 0
+    flow = body["flows"][0]
+    assert flow["from_region"] != flow["to_region"]
+    assert flow["edge_count"] >= 1
+    assert flow["amount_wan"] is not None
+
+
+def test_flows_summary_metrics(api, auth, seeded):
+    resp = api.get("/api/v1/flows/summary", headers=auth["viewer"])
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["regions"]) >= 2
+    assert body["hhi"] is not None and 0 < body["hhi"] <= 10000
+    assert body["total_cross_amount_wan"] > 0
+    assert body["cycles"]["cycle_count"] >= 1  # 合成数据含 C0↔C1 环
+    net_sum = sum(r["net_wan"] for r in body["regions"])
+    assert abs(net_sum) < 0.01  # 净额守恒：流入之和 = 流出之和
+
+
+def test_flows_timeline_and_industries(api, auth, seeded):
+    timeline = api.get("/api/v1/flows/timeline", headers=auth["viewer"]).json()
+    assert timeline["timeline"] and timeline["timeline"][0]["year"] >= 2018
+    industries = api.get("/api/v1/flows/industries", headers=auth["viewer"]).json()
+    assert industries["rows"], "合成数据的企业均有行业，应产生省→行业聚合"
+
+
+def test_flows_requires_auth(api):
+    assert api.get("/api/v1/flows/summary").status_code == 401
