@@ -1,6 +1,6 @@
 # 交付说明（DELIVERY）
 
-交付日期：2026-09-08 ｜ 版本 0.1.0 ｜ 全部交付物位于 `资本图谱/` 子目录（ADR-010）
+交付日期：2026-09-08（v0.1.0）｜ 2026-09-11 增量 v0.2：文档收敛 docs/、总览仪表板、模块边界 CI 强制、迁移指南（ADR-011/012） ｜ 全部交付物位于 `资本图谱/` 子目录（ADR-010）
 
 ## 1. 架构与取舍（详见 ARCHITECTURE.md 与 docs/DECISIONS.md）
 
@@ -24,7 +24,8 @@
 | 合成演示数据（确定性种子，含环路/历史变更演示）与 CSV fixture 连接器 | 同上（synthetic.py、csv_source.py） |
 | 幂等 worker（once/loop、指数退避、任务表） | `workers/src/cg_workers/worker.py` |
 | RBAC（admin/analyst/viewer 默认拒绝）+ JWT + argon2id + 审计 + 限流 + 安全头 | `apps/api/src/cg_api/auth.py、ratelimit.py、main.py` |
-| 图可视化：展开/收起、层数/阈值/方向/时间点、环路标红、UBO 标注、路径高亮、PNG/CSV 导出、超大图降级 | `apps/web/src/`（components/GraphCanvas.tsx、pages/Explore.tsx 等） |
+| 图可视化：展开/收起、层数/阈值/方向/时间点、环路标红、UBO 标注、路径高亮、PNG/CSV 导出、超大图降级、动态实体类型图例与规模统计 | `apps/web/src/`（components/GraphCanvas.tsx、pages/Explore.tsx 等） |
+| 数据总览仪表板：实体/声明/来源/复核/运行统计卡 + 类型/关系/年份/状态分布图表（纯 SVG，零新增依赖） | `apps/web/src/pages/Dashboard.tsx` + `routers/stats.py` |
 | 复核队列 + 质量问题 + 管理端（用户/审计/连接器） | `apps/web/src/pages/Review.tsx、Admin.tsx` + `routers/ops.py` |
 | 迁移（含 ownership/control 视图，upgrade/downgrade 回环验证） | `migrations/` |
 | 基础设施：Compose、Dockerfile、备份脚本、CI、SBOM、秘密扫描 | `infra/`、`scripts/`、`.github/workflows/ci.yml`、`docs/SBOM.cdx.json` |

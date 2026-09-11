@@ -1,14 +1,14 @@
 # 测试报告（TEST_REPORT）
 
-生成时间：2026-09-08 ｜ 全部结果来自实际运行（Windows 11 / Git Bash / Python 3.12.13 / Node v24.19.0）
+生成时间：2026-09-11（v0.2 增量更新）｜ 全部结果来自实际运行（Windows 11 / Git Bash / Python 3.12 / Node v24）
 
 ## 1. 测试执行总览
 
 | 套件 | 命令 | 结果 | 退出码 |
 | --- | --- | --- | --- |
-| 后端全量（单元+集成+安全+性能） | `uv run pytest tests --cov --cov-report=term` | **64 passed** | 0 |
+| 后端全量（单元+集成+安全+性能） | `uv run pytest tests --cov --cov-report=term` | **66 passed**（2026-09-11 实测） | 0 |
 | 覆盖率 | 同上 | TOTAL **89.3%**（2429 语句 / 260 未覆盖） | 0 |
-| 前端组件（vitest） | `cd apps/web && npm test` | **3 passed** | 0 |
+| 前端组件（vitest） | `cd apps/web && npm test` | **6 passed**（新增仪表板 3 项） | 0 |
 | E2E（Playwright + Chromium） | `cd apps/web && npx playwright test` | **8 passed**（10–12s） | 0 |
 | Lint | `uv run ruff check packages apps workers tests` | All checks passed | 0 |
 | 格式 | `uv run ruff format --check …` | 通过 | 0 |
@@ -76,3 +76,17 @@
 4. SQLite 默认未启用 WAL，高并发写场景建议生产使用 PostgreSQL（compose 就绪）。
 5. 中文检索基于规范化包含匹配（无分词）；数据量证明需要时按 ADR-003 引入专用搜索。
 6. Playwright E2E 依赖本机后端在 8300 运行；本轮曾因演练 kill 后端导致 1 次误报失败，重启后 8/8 通过。
+
+## 8. v0.2 增量（2026-09-11：文件整理 / 可视化 / 模块化迁移）
+
+| 项 | 命令 | 结果 |
+| --- | --- | --- |
+| 后端全量 | `uv run pytest tests --cov` | **66 passed**，TOTAL **89.4%**（新增 `/stats` 聚合测试 2 项） |
+| 前端组件 | `cd apps/web && npm test` | **6 passed**（Dashboard 卡片/图表/空态 + BarChart 空态） |
+| 前端构建 | `cd apps/web && npm run build` | 成功（tsc strict + vite） |
+| E2E 回归 | `cd apps/web && npx playwright test` | **8 passed**（10.5s） |
+| 模块边界 | `uv run python scripts/module_graph.py` | 通过；并修正 3 处声明失真（cg-capital-graph 缺声明 cg-domain、cg-workers 缺声明 cg-entity-resolution、cg-api 冗余声明 cg-entity-resolution），uv.lock 已同步 |
+| 可视化冒烟 | 浏览器实测 `/dashboard` 与 `/explore/{id}` | 仪表板 5 卡片 + 4 图表渲染正确；穿透图图例含实体类型色标与「N 实体 · M 关系」统计 |
+
+修复记录：年份条形图满高柱数值标签被 viewBox 裁剪 → 顶部预留 22px；SVG 随容器拉伸导致标签字体过大 → 改为固定原始尺寸渲染。
+既有问题修复：vitest 默认误扫 `e2e/*.spec.ts` → `vite.config.ts` 限定 `include: src/**`，`npm test` 语义恢复为单元测试。
