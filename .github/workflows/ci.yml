@@ -22,13 +22,16 @@ jobs:
       - name: 模块边界检查
         run: uv run python scripts/module_graph.py
       - name: 测试（含覆盖率）
-        run: uv run pytest tests --cov --cov-report=term
+        run: |
+          mkdir -p data   # pytest --basetemp 指向 data/pytest-tmp，CI runner 无该目录
+          uv run pytest tests --cov --cov-report=term
       - name: 秘密扫描
         run: uv run python scripts/secret_scan.py
       - name: SAST（bandit）
         run: uvx bandit -q -r packages apps/api/src workers/src
       - name: 迁移检查（SQLite）
         run: |
+          mkdir -p data
           export CG_DATABASE_URL="sqlite+aiosqlite:///./data/ci.sqlite3"
           uv run alembic upgrade head
           uv run alembic downgrade base
