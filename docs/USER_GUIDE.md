@@ -1,0 +1,151 @@
+# 使用与自定义指南（USER GUIDE）
+
+面向使用者与二次开发者。读完这页你就能：启动系统、看懂每个页面、导入自己的数据、
+以及知道"想改 X 应该动哪个文件、改完怎么验证"。
+
+---
+
+## 1. 启动
+
+### 方式一：一键脚本（Windows，推荐）
+
+双击仓库根目录的 **`启动演示.cmd`**。它会依次：安装依赖 → 数据库迁移 → 写入演示数据 → 启动服务。
+看到 `Uvicorn running on http://127.0.0.1:8300` 即成功，浏览器打开该地址即可。
+
+> 首次使用需先构建一次前端：`cd apps/web && npm install && npm run build`。
+> 端口被其他项目占用时，把脚本里 `--port 8300` 改成别的（如 8301）。
+
+### 方式二：手动命令（开发模式，前后端热更新）
+
+```bash
+# 后端（默认 SQLite，零依赖）
+uv sync
+uv run alembic upgrade head
+uv run cg-seed --entities 40          # 演示数据；重复执行自动跳过
+uv run uvicorn cg_api.main:app --port 8300
+
+# 前端（另开终端；5273 端口，API 自动代理到 8300）
+cd apps/web
+npm install
+npm run dev                            # CG_API_PROXY=http://127.0.0.1:8301 npm run dev 可改代理目标
+```
+
+生产形态（PostgreSQL）：`docker compose -f infra/docker-compose.yml up -d`，然后
+`CG_DATABASE_URL=postgresql+asyncpg://cg:cg@localhost:5432/capitalgraph uv run alembic upgrade head`。
+
+### 登录
+
+| 账号 | 口令 | 能做什么 |
+| --- | --- | --- |
+| viewer | viewer-demo-password | 看所有页面（总览/流动/检索/穿透） |
+| analyst | analyst-demo-password | + 复核队列、采集任务 |
+| admin | admin-demo-password | + 管理端（建用户/审计/连接器开关） |
+
+新用户由 admin 在「管理」页创建，或调 `POST /api/v1/admin/users`。演示口令仅限本地。
+
+---
+
+## 2. 页面速览
+
+| 页面 | 用途 | 上手要点 |
+| --- | --- | --- |
+| **总览** `/dashboard` | 数据资产一屏掌握 | 五张卡片 + 类型/关系/年份/状态分布；卡片可点直达对应页 |
+| **资本流动** `/flows` | 省际资本流动研究 | 地图红=净流出/绿=净流入；弧线=省际流向（宽度随"金额/笔数"切换）；点省份下钻看明细与主体；卡片行有 HHI 集中度与环路资金 |
+| **检索** `/` | 找实体 | 名称模糊 + 统一社会信用代码/证券代码精确 |
+| **穿透图** `/explore` | 股权穿透分析 | 顶部可直接搜索主体；方向/时间点/层级/最小比例四个旋钮；红边框=环路节点、金边=UBO 候选、虚线=控制声明；双击节点以其为根重穿；PNG/CSV 导出 |
+| **复核** `/review` | 数据质量人工处置 | analyst 及以上；处理冲突/疑似重复/低置信项 |
+| **管理** `/admin` | 用户、审计、连接器 | admin 专属；连接器可停用 |
+
+所有"候选"类结果（UBO、聚合权益）都附算法假设与证据链接——从穿透图侧栏点「查看」可回溯到原始证据片段。
+
+---
+
+## 3. 导入你自己的数据
+
+### 方式一：CSV（推荐起步）
+
+复制 `data/sample/自备数据模板.csv`，照格式填写。**列含义**：
+
+| 列 | 必填 | 说明 |
+| --- | --- | --- |
+| `record_type` | ✅ | `entity`（主体）/ `holding`（持股）/ `control`（控制） |
+| `subject_id/subject_name` | ✅ | 主体方；ID 以 P 开头自动识别为自然人，否则企业 |
+| `subject_uscc` | 可选 | 统一社会信用代码（须过 GB 32100 校验位） |
+| `region_code` | 可选 | 6 位省级行政区划代码（如 110000 北京），导入后才能上流动地图 |
+| `industry` | 可选 | 行业名（建议用国标门类，如"制造业"） |
+| `predicate` | — | 占位列，语义由 record_type 决定，随便填 |
+| `object_*` | holding/control 必填 | 对手方（被持股企业） |
+| `ratio` / `ratio_unit` | holding 必填 | 比例（percent 或 fraction）；确实未知就留空 |
+| `valid_from` / `valid_to` | 可选 | 生效区间（ISO 日期，左闭右开）；留空=至今 |
+| `amount_wan` | 可选 | 金额（**万元**），流动图金额口径使用 |
+| `evidence_url` / `field_path` / `raw_value` | 可选 | 证据留痕，强烈建议填来源链接 |
+
+导入（admin 登录后）：
+
+```bash
+TOKEN=$(curl -s -X POST http://127.0.0.1:8300/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin-demo-password"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+curl -X POST http://127.0.0.1:8300/api/v1/ingest/runs \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"connector":"csv","params":{"path":"data/sample/自备数据模板.csv"}}'
+```
+
+特性：**幂等**（同数据重复导入自动跳过）、**坏行隔离**（单行非法只丢该行并留痕，不中断整批）、
+导入后到「资本流动」页即可看到你自己的省际流向。
+
+### 方式二：写一个 connector（批量/在线数据）
+
+参照 `packages/connectors/src/cg_connectors/synthetic.py` 实现 `BaseConnector`：
+声明来源合规信息（`ConnectorSpec`）、产出 `EntityRecord/StatementRecord` 列表、保证幂等键。
+合规红线见 `DATA_GOVERNANCE.md`（禁止绕过反爬、禁止批量导出商业数据库）。
+
+---
+
+## 4. 常见自定义：改哪里
+
+| 我想改… | 动这个文件 | 改完跑 |
+| --- | --- | --- |
+| 演示数据规模/结构 | `uv run cg-seed --entities 200`（数量）；省份权重/金额分布在 `packages/connectors/src/cg_connectors/synthetic.py` | `uv run pytest tests/connectors` |
+| 省份/行业参考列表 | `packages/domain/src/cg_domain/regions.py`（PROVINCES/INDUSTRIES） | `uv run pytest tests` |
+| 流动统计口径（算哪些关系、时点、阈值） | `apps/api/src/cg_api/routers/flows.py` 的 `_FLOW_PREDICATES` 与路由参数；底层口径在 `packages/capital_graph/src/cg_capital_graph/flows.py` | `uv run pytest tests/capital_graph/test_flows.py tests/api` |
+| HHI 等指标定义 | 同上 `flows.py`（函数有口径注释，对应 ADR-014） | 同上 |
+| 地图配色/流向线宽度/TopN | `apps/web/src/pages/Flows.tsx`（DIVERGING_COLORS、lineWeight、slice 数量） | `cd apps/web && npm test && npm run build` |
+| 实体类型颜色/图样式 | `apps/web/src/components/GraphCanvas.tsx`（KIND_COLOR 与 cytoscape style） | `npm test` |
+| 数据库/端口/密钥 | 环境变量 `CG_DATABASE_URL` / `--port` / `CG_SECRET_KEY`，见 `docs/MIGRATION.md` | 重启服务 |
+| 新增 API | `apps/api/src/cg_api/routers/`（参照 stats.py 最简）并在 `main.py` 注册 | `uv run pytest tests/api` |
+
+**模块边界**：每个 Python 包只准依赖它 pyproject 里声明过的包，`uv run python scripts/module_graph.py`
+会强制检查（CI 也跑）。想新增包或跨包引用，先改对应 `pyproject.toml` 的声明。
+
+---
+
+## 5. 改完之后：自测四件套
+
+```bash
+uv run pytest tests --cov                       # 后端行为（当前 80 项 / ~90% 覆盖）
+uv run python scripts/module_graph.py           # 模块边界
+cd apps/web && npm test && npm run build        # 前端
+cd apps/web && npx playwright test              # E2E（需后端在代理目标端口运行）
+```
+
+全绿后正常 `git add` / `git commit` / `git push`——GitHub Actions 会再跑一遍
+（lint、测试、边界、秘密扫描、bandit、迁移回环、前端构建），保持绿色即可放心迭代。
+
+## 6. 用 ZCode 继续开发
+
+本项目按"提示词驱动"方式演进，桌面有系列提示词文件（`ZCODE_PROMPT_03_…资本流动与地图可视化.md` 是最新一份，
+含中断续跑提示词）。给 ZCode 的新任务建议沿用该格式：目标 → 功能范围 → 开源借鉴约束 → 硬约束 →
+实施顺序 → 交付格式；并始终带上"改完必须实际运行测试、未运行不得标完成"。
+
+## 7. 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| 页面空白/报"页面渲染出错" | 界面会显示错误详情（ErrorBoundary）；把截图/文本反馈给开发流程即可定位 |
+| 端口 8300 被占用 | 换端口启动；开发模式再配 `CG_API_PROXY`（见 §1 方式二） |
+| 地图不显示流向线 | 先切换"线宽口径"（金额需数据带 amount_wan）；合成数据与 CSV 模板均已带金额 |
+| 登录 401 | 演示口令见 §1 表格；生产环境务必设置 `CG_SECRET_KEY` 并改密 |
+| 地图用于出版物 | 本仓库内置 GeoJSON 仅为研究演示（来源见 `apps/web/src/assets/MAP_DATA_SOURCE.md`）；正式出版须使用自然资源部标准地图（审图号） |
+| 想清空重来 | 删除 `data/capitalgraph.sqlite3` 后重跑 `启动演示.cmd`（会重建并重新种子） |

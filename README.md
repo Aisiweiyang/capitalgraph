@@ -5,7 +5,12 @@
 
 > 研究工具。所有穿透与 UBO 结果均为**候选**并附证据与算法假设，不构成法律认定或投资建议。
 
-## 快速开始（本地开发，无需 Docker）
+## 快速开始
+
+**最简路径**：双击 `启动演示.cmd`（安装→迁移→种子→启动，一次到位），浏览器打开 http://127.0.0.1:8300 。
+想自己动手或二次开发，看下面的手动步骤与 [docs/USER_GUIDE.md](docs/USER_GUIDE.md)。
+
+### 本地开发（无需 Docker）
 
 前置：uv（Python 3.12 由 uv 自动管理）、Node.js ≥ 20。
 
@@ -49,6 +54,7 @@ uv run pytest
 - [THREAT_MODEL.md](docs/THREAT_MODEL.md) 威胁模型
 - [OSS_EVALUATION.md](docs/OSS_EVALUATION.md) 开源调研
 - [TEST_REPORT.md](docs/TEST_REPORT.md) / [DELIVERY.md](docs/DELIVERY.md) 测试与交付证据
+- [USER_GUIDE.md](docs/USER_GUIDE.md) 使用与自定义指南（怎么用、导入自己的数据、想改哪里）
 - [MIGRATION.md](docs/MIGRATION.md) 整体迁移与单模块抽取指南
 
 ## 功能亮点

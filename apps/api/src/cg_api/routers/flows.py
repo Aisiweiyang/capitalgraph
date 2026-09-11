@@ -112,10 +112,12 @@ async def flows_regions(
     limit: int = Query(default=200, ge=1, le=1000),
 ):
     cross, _ = await _load_flow_edges(repo, at)
+    total = len(aggregate_flows(cross, min_amount_wan=min_amount_wan))
     flows = aggregate_flows(cross, min_amount_wan=min_amount_wan, limit=limit)
     return {
         "at": at.isoformat() if at else None,
-        "count": len(flows),
+        "count": total,  # 满足条件的流向总数；returned 为本次实际返回（受 limit 截断）
+        "returned": len(flows),
         "flows": [
             {
                 "from_region": f.from_region,

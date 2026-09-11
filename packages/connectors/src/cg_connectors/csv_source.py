@@ -1,11 +1,14 @@
 """CSV fixture 连接器：面向测试与用户自备公开数据的受控导入。
 
-schema contract（表头必须一致，多余列忽略）：
-record_type,subject_id,subject_name,subject_uscc,predicate,object_id,object_name,object_uscc,
-ratio,ratio_unit,valid_from,valid_to,evidence_url,field_path,raw_value
+schema contract（15 个必需表头 + 若干可选列；多余列忽略）：
+必需：record_type,subject_id,subject_name,subject_uscc,predicate,object_id,object_name,object_uscc,
+     ratio,ratio_unit,valid_from,valid_to,evidence_url,field_path,raw_value
+可选：region_code（6 位省级行政区划代码）、industry（行业名）、amount_wan（金额，万元）
+     ——entity 行与关系行均可携带；关系行自动补建实体时同样继承。
 
 - record_type ∈ {entity, holding, control}
 - 坏行跳过并记录 IngestionIssue（失败隔离），不中断整批。
+- 可选列给出但非法（如 region_code 不是省级行政区划代码）→ 该行拒绝并留痕，与坏行同策略。
 - 文件大小上限由 runner 校验（zip bomb / 巨型文件防护在 runner 层）。
 """
 
@@ -26,6 +29,7 @@ from cg_domain.models import (
     EvidenceRecord,
     StatementRecord,
 )
+from cg_domain.regions import is_province_code
 
 from cg_connectors.base import (
     BaseConnector,
@@ -78,7 +82,8 @@ class CsvFixtureConnector(BaseConnector):
         self, ctx: ConnectorContext
     ) -> Iterator[tuple[ConnectorResult, IngestionIssue | None]]:
         path_raw = ctx.params.get("path", "")
-        path = Path(path_raw)
+        # 统一转绝对路径：相对路径会让 as_uri() 抛错，且相对基准依赖进程工作目录不可靠
+        path = Path(path_raw).resolve()
         if not path.is_file():
             yield (
                 ConnectorResult(),
@@ -177,13 +182,23 @@ class CsvFixtureConnector(BaseConnector):
             kind=EntityKind.PERSON if ext_id.upper().startswith("P") else EntityKind.COMPANY,
             name=name,
             uscc=(row.get("subject_uscc") or "").strip() or None,
+            region_code=self._region(row),
+            industry=(row.get("industry") or "").strip() or None,
         )
+
+    def _region(self, row: dict[str, str]) -> str | None:
+        """可选列 region_code：给出则必须是省级行政区划代码，否则拒绝该行。"""
+        code = (row.get("region_code") or "").strip() or None
+        if code is not None and not is_province_code(code):
+            raise DomainError(f"region_code 非省级行政区划代码: {code}")
+        return code
 
     def _statement_row(self, row: dict[str, str]) -> StatementRecord:
         record_type = (row.get("record_type") or "").strip().lower()
         predicate = _PREDICATE_MAP.get(record_type)
         if predicate is None:
             raise DomainError(f"未知 record_type: {record_type}")
+        self._region(row)  # 可选维度列给出即校验，坏值拒绝该行
         ratio_raw = (row.get("ratio") or "").strip()
         ratio = float(ratio_raw) if ratio_raw else None
         unit_raw = (row.get("ratio_unit") or "percent").strip().lower()
@@ -199,6 +214,11 @@ class CsvFixtureConnector(BaseConnector):
             raw_value=(row.get("raw_value") or "").strip(),
             normalized_value=(row.get("raw_value") or "").strip(),
         )
+        amount_raw = (row.get("amount_wan") or "").strip()
+        try:
+            amount_wan = float(amount_raw) if amount_raw else None
+        except ValueError:
+            raise DomainError(f"amount_wan 不是数字: {amount_raw}") from None
         return StatementRecord(
             subject_key=f"src:csv:{(row.get('subject_id') or '').strip()}",
             predicate=predicate,
@@ -207,6 +227,7 @@ class CsvFixtureConnector(BaseConnector):
             valid_to=valid_to,
             share_ratio=ratio,
             ratio_unit=unit,
+            amount_wan=amount_wan,
             control_type=ControlType.VOTING_RIGHTS if predicate is Predicate.CONTROLS else None,
             claim_basis=ClaimBasis.NORMALIZED,
             evidence=[ev],

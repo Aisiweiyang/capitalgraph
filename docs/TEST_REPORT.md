@@ -1,124 +1,83 @@
-# 测试报告（TEST_REPORT）
+# 交付说明（DELIVERY）
 
-生成时间：2026-09-11（v0.2 增量更新）｜ 全部结果来自实际运行（Windows 11 / Git Bash / Python 3.12 / Node v24）
+交付日期：2026-09-08（v0.1.0）｜ v0.2（2026-09-11）：文档收敛 docs/、总览仪表板、模块边界 CI 强制、迁移指南（ADR-011/012）｜ v0.3（2026-09-12）：区域资本流动研究层——流动地图/流向线/桑基/趋势 + 流动性指标（ADR-013/014）｜ v0.3.1：使用与自定义指南(docs/USER_GUIDE.md)、启动演示.cmd 一键脚本、CSV 自备数据支持省份/行业/金额列+模板、穿透图页内检索 ｜ 全部交付物位于 `资本图谱/` 子目录（ADR-010）
 
-## 1. 测试执行总览
+## 1. 架构与取舍（详见 ARCHITECTURE.md 与 docs/DECISIONS.md）
 
-| 套件 | 命令 | 结果 | 退出码 |
-| --- | --- | --- | --- |
-| 后端全量（单元+集成+安全+性能） | `uv run pytest tests --cov --cov-report=term` | **66 passed**（2026-09-11 实测） | 0 |
-| 覆盖率 | 同上 | TOTAL **89.3%**（2429 语句 / 260 未覆盖） | 0 |
-| 前端组件（vitest） | `cd apps/web && npm test` | **6 passed**（新增仪表板 3 项） | 0 |
-| E2E（Playwright + Chromium） | `cd apps/web && npx playwright test` | **8 passed**（10–12s） | 0 |
-| Lint | `uv run ruff check packages apps workers tests` | All checks passed | 0 |
-| 格式 | `uv run ruff format --check …` | 通过 | 0 |
+- **模块化单体 + 独立 worker + SPA**：FastAPI 一进程可服务 API 与前端静态产物；采集/重算走 `cg-worker`。
+- **单一事实源 = 关系库**（SQLAlchemy 2.0，SQLite/PostgreSQL 双方言）；**图计算在 Python 层纯函数实现**
+  （确定性、整数缩放比例、Fraction 聚合、显式护栏），不依赖任何图数据库递归方言（ADR-002）。
+- **时态声明模型**：声明 + 证据链（document→snapshot(sha256)→fragment），修正走 supersede 不覆盖历史；
+  持股与控制严格分开；UBO 只输出候选。
+- 无 Docker 环境下的适配：本地默认 SQLite 零依赖运行；`infra/docker-compose.yml` 提供 PostgreSQL/生产形态。
+- 未采用 Next.js（Vite SPA，ADR-007）、未采用 Dagster/Neo4j/DataHub（ADR-005 与 OSS_EVALUATION，均有触发条件）。
 
-## 2. 覆盖率要点（89.3% 全项目；核心领域分支 >85% 达标）
+## 2. 已完成功能及文件
 
-| 模块 | 覆盖率 |
+| 功能 | 位置 |
 | --- | --- |
-| cg-capital_graph（engine/analysis） | 99.2% / 94.9% |
-| cg-domain（models 99.2%、orm 99.6%、repo 全部 >90%、normalization 91.7%） | ≈98% |
-| cg-entity_resolution | features/scoring 100%，service ≈90% |
-| cg-connectors（synthetic 99%、csv_source 95.2%、ingest 85.3%、storage 83%） | ≈92% |
-| cg-api（schemas 100%、state 100%、auth 86%、routers penetration 93.8%） | ≈78% |
+| 领域模型/时态声明/证据链/ORM | `packages/domain/src/cg_domain/`（orm.py、models.py、repo/） |
+| 实体/标识符/别名检索；详情；声明历史；证据查询 | `apps/api/src/cg_api/routers/entities.py` |
+| 向上/向下穿透、环路、交叉持股、聚合有效权益、UBO 候选（R1/R2 规则） | `packages/capital_graph/src/cg_capital_graph/`（engine.py、analysis.py） |
+| 实体解析：规范化、USCC GB 32100 校验、评分、决策记录、合并 | `packages/entity_resolution/src/` + `packages/domain/normalization.py` |
+| connector SDK：合规声明、限速、幂等键、失败隔离、内容寻址对象存储 | `packages/connectors/src/cg_connectors/`（base/storage/registry/ingest） |
+| 合成演示数据（确定性种子，含环路/历史变更演示）与 CSV fixture 连接器 | 同上（synthetic.py、csv_source.py） |
+| 幂等 worker（once/loop、指数退避、任务表） | `workers/src/cg_workers/worker.py` |
+| RBAC（admin/analyst/viewer 默认拒绝）+ JWT + argon2id + 审计 + 限流 + 安全头 | `apps/api/src/cg_api/auth.py、ratelimit.py、main.py` |
+| 图可视化：展开/收起、层数/阈值/方向/时间点、环路标红、UBO 标注、路径高亮、PNG/CSV 导出、超大图降级、动态实体类型图例与规模统计 | `apps/web/src/`（components/GraphCanvas.tsx、pages/Explore.tsx 等） |
+| 数据总览仪表板：实体/声明/来源/复核/运行统计卡 + 类型/关系/年份/状态分布图表（纯 SVG，零新增依赖） | `apps/web/src/pages/Dashboard.tsx` + `routers/stats.py` |
+| **资本流动研究层（v0.3）**：省际流向聚合（金额/笔数/有效权益、缺失显式计数）、区域流动性指标（净流入流出/HHI/环路资金/年度趋势）、省份→行业桑基 | `packages/capital_graph/src/cg_capital_graph/flows.py`、`apps/api/src/cg_api/routers/flows.py`、`routers/entities.py`(by-region) |
+| 流动可视化：ECharts 中国地图 choropleth + 省际流向线（权重可切换）+ 排名/桑基/趋势图 + 省份下钻（明细与主体列表） | `apps/web/src/pages/Flows.tsx`、`components/EChart.tsx`、`assets/china.json`（来源声明见 assets/MAP_DATA_SOURCE.md） |
+| 数据维度：entities.region_code/industry、statements.amount_scaled（万元×100 缩放整数），双方言迁移 | `packages/domain`（orm/models/repo）、`migrations/versions/a7c31e5b8d20_*` |
+| 复核队列 + 质量问题 + 管理端（用户/审计/连接器） | `apps/web/src/pages/Review.tsx、Admin.tsx` + `routers/ops.py` |
+| 迁移（含 ownership/control 视图，upgrade/downgrade 回环验证） | `migrations/` |
+| 基础设施：Compose、Dockerfile、备份脚本、CI、SBOM、秘密扫描 | `infra/`、`scripts/`、`.github/workflows/ci.yml`、`docs/SBOM.cdx.json` |
 
-覆盖配置要点：`concurrency = ["thread", "greenlet"]`（否则 FastAPI 异步路由在 TestClient 线程中不被追踪，
-首次测量曾误报 44%）。
+## 3. 实际测试证据（详见 TEST_REPORT.md）
 
-## 3. 必测项对照（提示词 §9）
-
-| 要求 | 实现与证据 |
+| 项 | 结果 |
 | --- | --- |
-| 1 单元：时态声明/匹配/比例/路径/环路/交叉持股/聚合/UBO/规则解释 | tests/domain/test_models.py、tests/capital_graph/test_penetration.py（链式/多路径/环/缺比例/剪枝/确定性/超时/交叉持股/UBO R1R2/假设说明） |
-| 2 数据质量：schema/唯一性/引用完整性/时间区间/比例范围/来源必填/哈希/重复冲突 | 契约层校验测试 + statement payload 幂等 + identifier_reused 质量标记 + quality_issues 端点（tests/api） |
-| 3 集成：迁移/API/存储/fixture connector/失败重试/幂等 | Alembic upgrade→downgrade→upgrade 回环（SQLite 实测）；tests/api（API+连接器全链路幂等）；tests/workers（退避、失败隔离） |
-| 4 API contract：分页/筛选/排序/认证/越权/限流/错误码 | tests/api/test_api.py：viewer/analyst/admin 三级越权 401/403/404/422/429 |
-| 5 前端：组件/图操作/空态/错误态/权限态 | apps/web/src/Search.test.tsx + RoleGate 权限页 + 各页空/错态 |
-| 6 E2E：导入→检索→详情→展开穿透→证据→时间点→导出 | apps/web/e2e/core-flow.spec.ts 8 项（含 CSV/PNG 真实下载） |
-| 7 安全：未授权/越权/注入/XSS/SSRF/穿越/恶意上传/日志泄密/依赖漏洞 | tests/api（注入参数化、RBAC、限流）；storage 路径穿越拒绝测试；CSV 公式注入转义；日志不含堆栈与授权头；§4 扫描 |
-| 8 性能：可重复合成器、规模、p50/p95、错误率、内存 | tests/performance/test_perf.py（见 §5） |
-| 9 清洁环境 | 冻结安装→迁移→种子→健康→鉴权→检索 一键链路实测通过 |
+| `uv run pytest tests --cov` | **80 passed**，退出码 0，TOTAL **89.9%**（v0.3） |
+| `npm test`（vitest） | **8 passed**，退出码 0（v0.3） |
+| `npx playwright test` | **8 passed**，退出码 0 |
+| bandit / pip-audit / npm audit / secret_scan | 0 高危项；dev 链路余 2 moderate（已记录） |
+| 性能 | 2990 边穿透 p95 2.4ms；500 节点环 28.8ms；错误率 0；确定性 ✓ |
+| 恢复演练 | 备份→删库→恢复→行数一致 ✓ |
+| 清洁环境复现 | `uv sync --frozen` → 迁移 → 种子 → 健康 → 鉴权 → 检索 全通过 |
 
-## 4. 安全检查结果
+## 4. 开源借鉴（详见 OSS_EVALUATION.md 与 THIRD_PARTY_NOTICES.md）
 
-| 检查 | 工具 | 结果 |
-| --- | --- | --- |
-| SAST | `uvx bandit -q -r packages apps/api/src workers/src` | **0 findings**（exit 0） |
-| Python 依赖漏洞 | `uvx pip-audit -r requirements.txt` | **0 vulnerabilities**（仅工作区本地包跳过提示） |
-| 前端依赖漏洞 | `npm audit` | **0 critical / 0 high**（升级 vite@8、vitest@5 后；余 2 个 moderate 均为 dev 工具链：esbuild dev-server、react-router，不进入生产产物） |
-| 硬编码秘密 | `uv run python scripts/secret_scan.py` | 通过（0 findings） |
-| 迁移回滚 | `alembic downgrade base` → `upgrade head` | 通过（SQLite 实测，含视图对象） |
+核实日期 2026-09-07（GitHub API）。运行时仅引入 **cytoscape.js（MIT）**；
+followthemoney / BODS / nomenklatura / opensanctions / datahub / dagster 均为**模式借鉴，无代码复制**；
+neo4j（GPL-3.0）未引入未链接。SBOM：`docs/SBOM.cdx.json`（110 组件）。
 
-## 5. 性能（可重复合成器；机器：AMD64 / Windows / Python 3.12.13）
+## 5. 启动与演示最短步骤（本机实测命令）
 
-| 场景 | 规模 | p50 | p95 | 错误率 | 峰值内存 | 确定性 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 随机网络穿透 | 280 节点 / 586 边 | 0.6ms | 0.7ms | 0 | 91MB | ✓ |
-| 随机网络穿透 | 1300 节点 / 2990 边 | 2.4ms | 2.4ms | 0 | 421MB | ✓ |
-| 500 节点纯环（T13 对抗） | 500 节点 / 500 边 | 单次 28.8ms 完成环检测，无栈溢出/无死循环 | | | | ✓ |
+```bash
+cd 资本图谱
 
-## 6. 恢复演练（DATA_GOVERNANCE §备份与恢复）
-
-```
-1) VACUUM INTO 一致性快照备份      → backups/drill.sqlite3 (573KB)
-2) 行数校验(备份=源)               → entities 40 / statements 130 / aliases 40 / identifiers 69 / users 3
-3) 删除源库（模拟灾难）             → data/e2e.sqlite3 removed
-4) 从备份恢复至原路径
-5) 恢复后行数一致                   → 全部相等，演练成功
+# 后端（无需 Docker）
+uv sync
+uv run alembic upgrade head
+uv run cg-seed --entities 40
+CG_WEB_DIST=apps/web/dist uv run uvicorn cg_api.main:app --port 8300
+# 前端（开发模式，另开终端；生产模式可跳过——后端已托管 dist）
+cd apps/web && npm install && npm run dev
+# 打开 http://localhost:5273 ，登录 viewer/viewer-demo-password
 ```
 
-## 7. 已知问题与限制（不构成验收失败，如实记录）
+演示路径：检索"有限公司" → 打开任一企业 → 「查看」证据 → 「在穿透图中查看该主体」→
+切换方向/时间点(2020-01-01 vs 当前) → 导出 CSV/PNG；用 admin 登录可看管理端与审计。
 
-1. `npm audit` 余 2 个 moderate，均为仅开发链路（esbuild dev server、react-router），生产构建产物不含。
-2. fastapi TestClient 触发 starlette 弃用告警（httpx2 迁移生态进行中），不影响功能。
-3. 限流为单实例内存令牌桶；多实例部署需外置存储（见 THREAT_MODEL 残余风险）。
-4. SQLite 默认未启用 WAL，高并发写场景建议生产使用 PostgreSQL（compose 就绪）。
-5. 中文检索基于规范化包含匹配（无分词）；数据量证明需要时按 ADR-003 引入专用搜索。
-6. Playwright E2E 依赖本机后端在 8300 运行；本轮曾因演练 kill 后端导致 1 次误报失败，重启后 8/8 通过。
+测试复现：`uv run pytest tests --cov`；`cd apps/web && npm test && npx playwright test`
+（E2E 需后端已在 8300 运行）。
 
-## 8. v0.2 增量（2026-09-11：文件整理 / 可视化 / 模块化迁移）
+## 6. 已知限制
 
-| 项 | 命令 | 结果 |
-| --- | --- | --- |
-| 后端全量 | `uv run pytest tests --cov` | **66 passed**，TOTAL **89.4%**（新增 `/stats` 聚合测试 2 项） |
-| 前端组件 | `cd apps/web && npm test` | **6 passed**（Dashboard 卡片/图表/空态 + BarChart 空态） |
-| 前端构建 | `cd apps/web && npm run build` | 成功（tsc strict + vite） |
-| E2E 回归 | `cd apps/web && npx playwright test` | **8 passed**（10.5s） |
-| 模块边界 | `uv run python scripts/module_graph.py` | 通过；并修正 3 处声明失真（cg-capital-graph 缺声明 cg-domain、cg-workers 缺声明 cg-entity-resolution、cg-api 冗余声明 cg-entity-resolution），uv.lock 已同步 |
-| 可视化冒烟 | 浏览器实测 `/dashboard` 与 `/explore/{id}` | 仪表板 5 卡片 + 4 图表渲染正确；穿透图图例含实体类型色标与「N 实体 · M 关系」统计 |
-
-修复记录：年份条形图满高柱数值标签被 viewBox 裁剪 → 顶部预留 22px；SVG 随容器拉伸导致标签字体过大 → 改为固定原始尺寸渲染。
-既有问题修复：vitest 默认误扫 `e2e/*.spec.ts` → `vite.config.ts` 限定 `include: src/**`，`npm test` 语义恢复为单元测试。
-
-## 9. GitHub CI 首次实测（2026-09-11，仓库今日发布至远端）
-
-仓库 `Aisiweiyang/capitalgraph-cn`（private）推送后在 GitHub Actions（ubuntu-latest）真实执行。
-首两次运行暴露 3 个 Windows 本机从未触发的问题，已修复并复测通过：
-
-| 问题 | 根因 | 修复 |
-| --- | --- | --- |
-| pytest setup ERROR（basetemp 无法创建） | `--basetemp=./data/pytest-tmp` 依赖仓库内 `data/` 目录，Linux runner 无此目录 | CI 两处步骤前 `mkdir -p data` |
-| bandit B101×2 / B311×1 | `entities.py` 以 assert 做数据防御、`synthetic.py` 演示 RNG 与生成器自检 | assert 改显式跳过/ValueError；RNG 行注明非安全用途（nsec B311） |
-| （历史）`scripts/` 未纳入 ruff | CI 仅检查四目录 | 本地已全量修复并纳入 |
-
-最终结果：**backend ✓ + frontend ✓（run 34618296805）**，徽章绿。
-
-## 10. v0.3 增量（2026-09-12：资本流动与地图可视化）
-
-| 项 | 命令 | 结果 |
-| --- | --- | --- |
-| 后端全量 | `uv run pytest tests --cov` | **80 passed**，TOTAL **89.9%**（新增 flows 纯函数 10 项 + /flows API 4 项 + by-region 1 项，含既有回归） |
-| 前端组件 | `cd apps/web && npm test` | **8 passed**（新增 FlowsPage 2 项） |
-| 前端构建 | `npm run build`（tsc strict） | 成功 |
-| E2E | `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **8 passed**（8300 被同机另一项目占用，新增 CG_API_PROXY 代理覆盖能力） |
-| 模块边界 | `uv run python scripts/module_graph.py` | 通过（flows.py 归属 cg-capital-graph，无新依赖） |
-| bandit / 秘密扫描 | `uvx bandit -q -r …` / `scripts/secret_scan.py` | 0 高危 / 通过 |
-| 可视化验证 | 浏览器实测 /flows + 图表 canvas 像素采样 + getDataURL 导出审阅 | 地图 choropleth 着色正确、33 条省际流向线绘制、排名/趋势/桑基出图；截图脚本另存 `getDataURL` 导出核验 |
-
-### 调试记录（如实验证）
-
-1. **桑基/流向线离屏不刷新**：lines/sankey 走 zrender 增量渲染层，后台标签页 rAF 节流时动画停在 0%。
-   修复：lines `animation:false`，lines/sankey `progressive:0`（ADR-013 记录，注释入代码）。
-2. **lines 颜色不生效**：series 级 `lineStyle.color` 不传导至线元素，需放在数据项级 `lineStyle.color`。
-3. **ECharts 6.1.0 → 5.6.0**：v6 中 lines-on-geo 同场景复现不绘制，钉在 v5.6.0（ADR-013）。
+1. 单实例内存限流；JWT 无吊销列表（短时效缓解）。
+2. SQLite 为默认开发库；生产建议 PostgreSQL（compose 就绪，迁移双方言兼容）。
+3. 检索为规范化包含匹配，无中文分词（ADR-003 触发条件后再引入专用搜索）。
+4. 图计算单进程内存受 `max_nodes` 护栏约束；超大规模需按 ADR-002 撤销条件引入投影缓存。
+5. 交叉持股检测在节点集上有界（500/200 对），超出部分不承诺完整（THREAT_MODEL/DELIVERY 双记录）。
+6. 首版未做：舆情/回测/真实交易（提示词范围外）；预留 `Security` 与事件标识接口。
+7. 本会话未接入 DeepSeek 工具（ADR-008），全部代码由 ZCode 实现并自测。

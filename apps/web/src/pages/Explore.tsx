@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, type PenetrationResult } from "../api";
+import { api, type PenetrationResult, type SearchOut } from "../api";
 import { GraphCanvas, type GraphHandles } from "../components/GraphCanvas";
 import { kindLabel } from "./Search";
 
@@ -19,6 +19,22 @@ export function ExplorePage() {
   const [depth, setDepth] = useState(3);
   const [minRatio, setMinRatio] = useState("0.01");
   const [degraded, setDegraded] = useState(false);
+  // 页内检索：输入关键词 → 选结果 → 立即穿透（免手动复制实体 ID）
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<SearchOut | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const search = useCallback(async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      setHits(await api.search(query.trim()));
+    } catch {
+      setHits(null);
+    } finally {
+      setSearching(false);
+    }
+  }, [query]);
 
   const load = useCallback(
     async (rootId: string) => {
@@ -61,6 +77,41 @@ export function ExplorePage() {
   return (
     <div className="explore">
       <h2>穿透图</h2>
+      <div className="controls search-controls">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="按名称/信用代码/证券代码搜索主体…"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void search();
+          }}
+        />
+        <button onClick={() => void search()} disabled={busy || !query.trim()}>
+          {searching ? "搜索中…" : "搜索"}
+        </button>
+        {hits && hits.total > 0 && (
+          <ul className="search-suggest">
+            {hits.hits.slice(0, 8).map((hit) => (
+              <li key={hit.id}>
+                <button
+                  className="linklike"
+                  onClick={() => {
+                    setRootInput(hit.id);
+                    setHits(null);
+                    setQuery("");
+                    void load(hit.id);
+                    navigate(`/explore/${hit.id}`);
+                  }}
+                >
+                  {hit.primary_name}
+                </button>
+                <span className="tag">{kindLabel(hit.kind)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {hits && hits.total === 0 && <span className="muted">无匹配主体</span>}
+      </div>
       <div className="controls">
         <input
           value={rootInput}

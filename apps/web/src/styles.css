@@ -148,3 +148,14 @@ a { color: var(--accent); }
   .flows-layout, .flows-layout.two { grid-template-columns: 1fr; }
   .flow-map { height: 380px; }
 }
+
+/* 穿透图页内检索 */
+.search-controls { position: relative; }
+.search-controls input:first-child { flex: 1; max-width: 420px; }
+.search-suggest {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+  list-style: none; margin: 4px 0 0; padding: 4px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(28,36,48,.12); max-height: 280px; overflow-y: auto;
+}
+.search-suggest li { display: flex; gap: 8px; align-items: center; padding: 4px 6px; }

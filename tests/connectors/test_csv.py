@@ -125,3 +125,69 @@ def test_ratio_out_of_range_rejected_by_contract():
             valid_from=date(2020, 1, 1),
             share_ratio=101.0,
         )
+
+
+RICH_HEADER = (
+    "record_type,subject_id,subject_name,subject_uscc,region_code,industry,"
+    "predicate,object_id,object_name,object_uscc,ratio,ratio_unit,valid_from,valid_to,"
+    "evidence_url,field_path,raw_value,amount_wan"
+)
+
+RICH_ENTITY_A = "entity,COMPANY-A,示例甲有限公司,91110000ABCDEF01X9,110000,金融业,,,,,,,,,,,,,"
+RICH_ENTITY_B = "entity,COMPANY-B,示例乙科技有限公司,,310000,科学研究和技术服务业,,,,,,,,,,,,,"
+RICH_HOLDING = (
+    "holding,COMPANY-A,示例甲有限公司,,110000,,h0,COMPANY-B,示例乙科技有限公司,,"
+    "66.60,percent,2022-03-01,,https://example.gov/r1,row[3].ratio,66.6,80.0"
+)
+
+
+def test_csv_optional_dimension_columns(tmp_path):
+    """可选列 region_code/industry/amount_wan：合法值进入领域记录。"""
+    from cg_connectors.base import ConnectorContext
+    from cg_connectors.csv_source import CsvFixtureConnector
+
+    path = write_csv(tmp_path, "\n".join([RICH_HEADER, RICH_ENTITY_A, RICH_ENTITY_B, RICH_HOLDING]))
+    connector = CsvFixtureConnector()
+    batches = list(connector.fetch(ConnectorContext(params={"path": path}, max_records=100)))
+    result = batches[0][0]
+    by_ext = {e.external_id: e for e in result.entities}
+    assert by_ext["COMPANY-A"].region_code == "110000"
+    assert by_ext["COMPANY-A"].industry == "金融业"
+    assert by_ext["COMPANY-B"].region_code == "310000"
+    # 关系行的金额进入声明记录（万元 → amount_scaled 由模型换算）
+    stmt = next(s for s in result.statements if s.predicate.value == "holds_shares")
+    assert stmt.amount_wan == 80.0
+    assert stmt.amount_scaled == 8000  # 万元×100
+
+
+def test_csv_invalid_region_code_rejects_row(tmp_path):
+    """region_code 非省级代码 → 该行拒绝（坏行隔离），其余照常。"""
+    from cg_connectors.base import ConnectorContext
+    from cg_connectors.csv_source import CsvFixtureConnector
+
+    bad_row = RICH_HOLDING.replace(",,110000,,h0", ",,999999,,h0")
+    path = write_csv(tmp_path, "\n".join([RICH_HEADER, RICH_ENTITY_A, RICH_ENTITY_B, bad_row]))
+    connector = CsvFixtureConnector()
+    batches = list(connector.fetch(ConnectorContext(params={"path": path}, max_records=100)))
+    issues = [issue for _, issue in batches if issue is not None]
+    assert any("region_code" in (i.message or "") for i in issues)
+    # 坏行被隔离，好的 entity 行仍然导入
+    result = batches[0][0]
+    assert {e.external_id for e in result.entities} >= {"COMPANY-A", "COMPANY-B"}
+
+
+def test_csv_relative_path_accepted(tmp_path, monkeypatch):
+    """相对路径参数应被解析为绝对路径后读取（as_uri 兼容），不抛 ValueError。"""
+    from cg_connectors.base import ConnectorContext
+    from cg_connectors.csv_source import CsvFixtureConnector
+
+    write_csv(tmp_path, VALID_CSV)
+    monkeypatch.chdir(tmp_path)
+    connector = CsvFixtureConnector()
+    batches = list(
+        connector.fetch(ConnectorContext(params={"path": "fixture.csv"}, max_records=100))
+    )
+    result, issue = batches[0]
+    assert issue is None
+    assert len(result.entities) == 3
+    assert "fixture.csv" in result.raw_payloads

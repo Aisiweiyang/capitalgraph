@@ -282,6 +282,7 @@ def test_flows_regions_aggregates_seeded_data(api, auth, seeded):
     assert resp.status_code == 200
     body = resp.json()
     assert body["count"] > 0
+    assert body["returned"] <= body["count"]
     flow = body["flows"][0]
     assert flow["from_region"] != flow["to_region"]
     assert flow["edge_count"] >= 1
