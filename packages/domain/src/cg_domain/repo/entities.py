@@ -131,7 +131,9 @@ class EntityRepository:
             found = await self.find_id_by_identifier(namespace, value)
             if found:
                 entity = await self.get(found)
-                assert entity is not None
+                if entity is None:
+                    # 标识符索引命中但实体已不存在（不一致/竞态）：跳过陈旧索引继续创建
+                    continue
                 if record.former_names:
                     for former in record.former_names:
                         await self.add_alias(

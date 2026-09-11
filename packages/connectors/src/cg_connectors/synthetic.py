@@ -79,7 +79,7 @@ class SyntheticConnector(BaseConnector):
     def fetch(
         self, ctx: ConnectorContext
     ) -> Iterator[tuple[ConnectorResult, IngestionIssue | None]]:
-        rng = random.Random(int(ctx.params.get("seed", "42")))
+        rng = random.Random(int(ctx.params.get("seed", "42")))  # nosec B311 演示数据生成，非安全用途
         n_entities = min(int(ctx.params.get("entities", "40")), ctx.max_records)
         with_history = ctx.params.get("with_history", "true") == "true"
 
@@ -143,7 +143,8 @@ class SyntheticConnector(BaseConnector):
                 ticker=f"{600000 + i * 7:06d}" if kind is EntityKind.LISTED_COMPANY else None,
                 exchange="SSE" if kind is EntityKind.LISTED_COMPANY else None,
             )
-            assert is_valid_uscc(uscc)
+            if not is_valid_uscc(uscc):  # 生成器不变量：确定性种子也不得产出非法 USCC
+                raise ValueError(f"synthetic generator produced invalid USCC: {uscc}")
             companies.append(record)
         entities.extend(companies)
 
