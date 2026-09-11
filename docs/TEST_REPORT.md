@@ -90,3 +90,16 @@
 
 修复记录：年份条形图满高柱数值标签被 viewBox 裁剪 → 顶部预留 22px；SVG 随容器拉伸导致标签字体过大 → 改为固定原始尺寸渲染。
 既有问题修复：vitest 默认误扫 `e2e/*.spec.ts` → `vite.config.ts` 限定 `include: src/**`，`npm test` 语义恢复为单元测试。
+
+## 9. GitHub CI 首次实测（2026-09-11，仓库今日发布至远端）
+
+仓库 `Aisiweiyang/capitalgraph-cn`（private）推送后在 GitHub Actions（ubuntu-latest）真实执行。
+首两次运行暴露 3 个 Windows 本机从未触发的问题，已修复并复测通过：
+
+| 问题 | 根因 | 修复 |
+| --- | --- | --- |
+| pytest setup ERROR（basetemp 无法创建） | `--basetemp=./data/pytest-tmp` 依赖仓库内 `data/` 目录，Linux runner 无此目录 | CI 两处步骤前 `mkdir -p data` |
+| bandit B101×2 / B311×1 | `entities.py` 以 assert 做数据防御、`synthetic.py` 演示 RNG 与生成器自检 | assert 改显式跳过/ValueError；RNG 行注明非安全用途（nsec B311） |
+| （历史）`scripts/` 未纳入 ruff | CI 仅检查四目录 | 本地已全量修复并纳入 |
+
+最终结果：**backend ✓ + frontend ✓（run 34618296805）**，徽章绿。
