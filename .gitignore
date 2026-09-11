@@ -41,3 +41,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# Build artifacts & local auth state
+*.tsbuildinfo
+apps/web/e2e/.auth-state.json

@@ -27,7 +27,7 @@
 | 图可视化：展开/收起、层数/阈值/方向/时间点、环路标红、UBO 标注、路径高亮、PNG/CSV 导出、超大图降级 | `apps/web/src/`（components/GraphCanvas.tsx、pages/Explore.tsx 等） |
 | 复核队列 + 质量问题 + 管理端（用户/审计/连接器） | `apps/web/src/pages/Review.tsx、Admin.tsx` + `routers/ops.py` |
 | 迁移（含 ownership/control 视图，upgrade/downgrade 回环验证） | `migrations/` |
-| 基础设施：Compose、Dockerfile、备份脚本、CI、SBOM、秘密扫描 | `infra/`、`scripts/`、`.github/workflows/ci.yml`、`SBOM.cdx.json` |
+| 基础设施：Compose、Dockerfile、备份脚本、CI、SBOM、秘密扫描 | `infra/`、`scripts/`、`.github/workflows/ci.yml`、`docs/SBOM.cdx.json` |
 
 ## 3. 实际测试证据（详见 TEST_REPORT.md）
 
@@ -45,7 +45,7 @@
 
 核实日期 2026-09-07（GitHub API）。运行时仅引入 **cytoscape.js（MIT）**；
 followthemoney / BODS / nomenklatura / opensanctions / datahub / dagster 均为**模式借鉴，无代码复制**；
-neo4j（GPL-3.0）未引入未链接。SBOM：`SBOM.cdx.json`（110 组件）。
+neo4j（GPL-3.0）未引入未链接。SBOM：`docs/SBOM.cdx.json`（110 组件）。
 
 ## 5. 启动与演示最短步骤（本机实测命令）
 

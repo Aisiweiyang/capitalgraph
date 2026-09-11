@@ -39,14 +39,14 @@ uv run pytest
 
 ## 文档
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) 架构与取舍
-- [DATA_MODEL.md](DATA_MODEL.md) 数据模型
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) 架构与取舍
+- [DATA_MODEL.md](docs/DATA_MODEL.md) 数据模型
 - [docs/DECISIONS.md](docs/DECISIONS.md) ADR
 - [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) 计划与验收
-- [DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) 数据合规
-- [THREAT_MODEL.md](THREAT_MODEL.md) 威胁模型
-- [OSS_EVALUATION.md](OSS_EVALUATION.md) 开源调研
-- [TEST_REPORT.md](TEST_REPORT.md) / [DELIVERY.md](DELIVERY.md) 测试与交付证据
+- [DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) 数据合规
+- [THREAT_MODEL.md](docs/THREAT_MODEL.md) 威胁模型
+- [OSS_EVALUATION.md](docs/OSS_EVALUATION.md) 开源调研
+- [TEST_REPORT.md](docs/TEST_REPORT.md) / [DELIVERY.md](docs/DELIVERY.md) 测试与交付证据
 
 ## 目录
 

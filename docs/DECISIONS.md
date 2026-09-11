@@ -71,3 +71,14 @@
   独立 npm 工程；绝不读写父目录中 asg-* 相关文件。
 - 代价：父目录与本项目各有仓库，需分别操作；收益：零冲突，`资本图谱/` 整体可搬移到任意路径。
 - 提示词中"当前目录"解释为本项目子目录；最终交付物均位于 `资本图谱/` 内。
+
+## ADR-011 文档收敛 docs/ 与产物出库（2026-09-11，已采纳）
+
+- 背景：v0.1.0 交付后进入 GitHub 发布阶段，根目录并存 README、LICENSE 与 8 份交付文档 + SBOM，
+  且 `tsconfig.tsbuildinfo`、`e2e/.auth-state.json` 等本地产物被误跟踪。
+- 决策：`ARCHITECTURE / DATA_MODEL / DATA_GOVERNANCE / THREAT_MODEL / OSS_EVALUATION /
+  TEST_REPORT / DELIVERY / THIRD_PARTY_NOTICES / SBOM.cdx.json` 全部收敛到 `docs/`；
+  根目录只保留 README.md、LICENSE 与工程配置。`scripts/sbom.py` 输出路径同步改为 `docs/`；
+  构建产物与本地认证状态加入 `.gitignore` 并移出索引。跨文档链接已同步更新。
+- 代价：外部旧链接（若有）需按新路径访问；收益：根目录即工程入口，文档单一存放点，
+  符合 GitHub 仓库浏览习惯，整体可搬移性不受影响（仓库内自包含）。

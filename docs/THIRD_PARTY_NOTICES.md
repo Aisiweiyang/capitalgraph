@@ -1,6 +1,6 @@
 # 第三方组件与许可证声明（THIRD_PARTY_NOTICES）
 
-运行时第三方库清单以 `SBOM.cdx.json` 为准（生成脚本 `scripts/sbom.py`）。以下为主要组件及其许可证。
+运行时第三方库清单以 `docs/SBOM.cdx.json` 为准（生成脚本 `scripts/sbom.py`）。以下为主要组件及其许可证。
 
 ## Python 运行时依赖（uv.lock 锁定）
 

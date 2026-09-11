@@ -72,7 +72,7 @@ def main() -> int:
         },
         "components": sorted(components, key=lambda c: (c["purl"])),
     }
-    out = ROOT / "SBOM.cdx.json"
+    out = ROOT / "docs" / "SBOM.cdx.json"
     out.write_text(json.dumps(sbom, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"SBOM 写入 {out}：{len(components)} 个组件")
     return 0
