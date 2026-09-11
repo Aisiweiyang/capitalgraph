@@ -6,7 +6,6 @@ requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
 dependencies = [
     "cg-domain",
-    "cg-entity-resolution",
     "cg-capital-graph",
     "cg-connectors",
     "fastapi>=0.115",

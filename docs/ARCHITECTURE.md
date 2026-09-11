@@ -1,12 +1,64 @@
 # CapitalGraph CN 架构
 
-版本：0.1 ｜ 2026-09-07
+版本：0.2 ｜ 2026-09-11
 
 ## 总体形态
 
 模块化单体 API + 独立 worker 进程 + SPA 前端，单一关系型事实源。
 
+```mermaid
+graph TB
+    subgraph web["apps/web — React + TypeScript + Cytoscape.js"]
+        UI["总览仪表板 / 检索 / 穿透图 / 复核 / 管理"]
+    end
+    subgraph api["apps/api — FastAPI"]
+        AUTH["JWT + RBAC + 限流 + 审计"]
+        ROUTES["entities / penetration / stats / ops / ingest"]
+    end
+    subgraph packages["packages — 领域层（纯 Python，可独立迁移）"]
+        DOMAIN["cg-domain<br/>模型 + ORM + 仓储"]
+        GRAPH["cg-capital-graph<br/>穿透/环路/聚合/UBO 纯函数"]
+        RES["cg-entity-resolution<br/>实体解析与决策"]
+        CONN["cg-connectors<br/>connector SDK + 合成数据"]
+    end
+    DB[("单一事实源<br/>PostgreSQL / SQLite")]
+    WORKER["workers — 幂等采集/解析任务"]
+
+    UI -->|HTTP/JSON + JWT| AUTH
+    AUTH --> ROUTES
+    ROUTES --> DOMAIN
+    ROUTES --> GRAPH
+    WORKER --> CONN
+    WORKER --> RES
+    CONN --> DOMAIN
+    RES --> DOMAIN
+    GRAPH --> DOMAIN
+    DOMAIN --> DB
 ```
+
+## 模块依赖图（由 `scripts/module_graph.py` 从实际导入生成，CI 强制校验）
+
+```mermaid
+graph LR
+    domain["cg-domain"]
+    capital["cg-capital-graph"]
+    resolution["cg-entity-resolution"]
+    connectors["cg-connectors"]
+    api2["cg-api"]
+    workers2["cg-workers"]
+
+    capital --> domain
+    resolution --> domain
+    connectors --> domain
+    api2 --> domain
+    api2 --> capital
+    api2 --> connectors
+    workers2 --> domain
+    workers2 --> connectors
+    workers2 --> resolution
+```
+
+```text
 ┌────────────┐   HTTP/JSON   ┌─────────────────┐   SQLAlchemy   ┌──────────────┐
 │ apps/web   │ ────────────▶ │ apps/api        │ ─────────────▶ │ PostgreSQL   │
 │ React+TS   │               │ FastAPI         │                │ (生产)        │

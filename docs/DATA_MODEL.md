@@ -1,6 +1,38 @@
 # CapitalGraph CN 数据模型
 
-版本：0.1 ｜ 2026-09-07 ｜ 与 `packages/domain` 实现保持同步
+版本：0.2 ｜ 2026-09-11 ｜ 与 `packages/domain` 实现保持同步
+
+## 模型总览（分层）
+
+```mermaid
+graph TB
+    subgraph L0["证据层（append-only）"]
+        DOC[source_documents] --> SNAP[source_snapshots] --> FRAG[evidence_fragments]
+        RUN[ingestion_runs]
+        LIC[dataset_licenses]
+    end
+    subgraph L1["标准化层（版本化修正）"]
+        ENT[entities] --- IDT[entity_identifiers]
+        ENT --- ALI[name_aliases]
+        ENT --- SEC[securities]
+        STMT[relationship_statements]
+        STMT ---|statement_evidence| FRAG
+    end
+    subgraph L2["解析与派生层（可重算）"]
+        RC[resolution_candidates] --> RD[resolution_decisions]
+        DP[derived_paths] --> OC[ownership_calculations]
+        RF[risk_flags]
+    end
+    subgraph L3["运营层"]
+        QI[quality_issues] --> RQ[review_queue]
+        U[users] --- AL[audit_log]
+        T[tasks]
+    end
+    SNAP -->|来源链| STMT
+    RUN --> STMT
+    STMT --> DP
+    ENT --> RC
+```
 
 ## 实体与标识
 

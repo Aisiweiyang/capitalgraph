@@ -379,7 +379,6 @@ dependencies = [
     { name = "cg-capital-graph" },
     { name = "cg-connectors" },
     { name = "cg-domain" },
-    { name = "cg-entity-resolution" },
     { name = "fastapi" },
     { name = "orjson" },
     { name = "pydantic-settings" },
@@ -402,7 +401,6 @@ requires-dist = [
     { name = "cg-capital-graph", editable = "packages/capital_graph" },
     { name = "cg-connectors", editable = "packages/connectors" },
     { name = "cg-domain", editable = "packages/domain" },
-    { name = "cg-entity-resolution", editable = "packages/entity_resolution" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "orjson", specifier = ">=3.10" },
     { name = "pydantic-settings", specifier = ">=2.6" },
@@ -416,6 +414,12 @@ provides-extras = ["postgres"]
 name = "cg-capital-graph"
 version = "0.1.0"
 source = { editable = "packages/capital_graph" }
+dependencies = [
+    { name = "cg-domain" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cg-domain", editable = "packages/domain" }]
 
 [[package]]
 name = "cg-connectors"
@@ -481,12 +485,14 @@ source = { editable = "workers" }
 dependencies = [
     { name = "cg-connectors" },
     { name = "cg-domain" },
+    { name = "cg-entity-resolution" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cg-connectors", editable = "packages/connectors" },
     { name = "cg-domain", editable = "packages/domain" },
+    { name = "cg-entity-resolution", editable = "packages/entity_resolution" },
 ]
 
 [[package]]

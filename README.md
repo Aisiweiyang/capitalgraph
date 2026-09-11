@@ -47,6 +47,7 @@ uv run pytest
 - [THREAT_MODEL.md](docs/THREAT_MODEL.md) 威胁模型
 - [OSS_EVALUATION.md](docs/OSS_EVALUATION.md) 开源调研
 - [TEST_REPORT.md](docs/TEST_REPORT.md) / [DELIVERY.md](docs/DELIVERY.md) 测试与交付证据
+- [MIGRATION.md](docs/MIGRATION.md) 整体迁移与单模块抽取指南
 
 ## 目录
 

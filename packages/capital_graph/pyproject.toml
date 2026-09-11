@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "图计算：向上/向下穿透、环路、交叉持股、有效权益聚合、UBO 候选（纯函数、确定性）"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
-dependencies = []
+dependencies = [
+    "cg-domain",
+]
 
 [build-system]
 requires = ["hatchling"]

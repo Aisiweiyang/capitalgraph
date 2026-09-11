@@ -19,6 +19,8 @@ jobs:
         run: |
           uv run ruff check packages apps workers tests
           uv run ruff format --check packages apps workers tests
+      - name: 模块边界检查
+        run: uv run python scripts/module_graph.py
       - name: 测试（含覆盖率）
         run: uv run pytest tests --cov --cov-report=term
       - name: 秘密扫描
