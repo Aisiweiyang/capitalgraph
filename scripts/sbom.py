@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,7 +49,12 @@ def node_components() -> list[dict]:
         name = path_key.removeprefix("node_modules/")
         version = info.get("version", "")
         comps.append(
-            {"type": "library", "name": name, "version": version, "purl": f"pkg:npm/{name}@{version}"}
+            {
+                "type": "library",
+                "name": name,
+                "version": version,
+                "purl": f"pkg:npm/{name}@{version}",
+            }
         )
     return comps
 
@@ -68,9 +73,9 @@ def main() -> int:
                 "description": "中国企业资本关系与股权穿透研究平台",
             },
             "tools": [{"vendor": "capitalgraph", "name": "scripts/sbom.py"}],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
-        "components": sorted(components, key=lambda c: (c["purl"])),
+        "components": sorted(components, key=lambda c: c["purl"]),
     }
     out = ROOT / "docs" / "SBOM.cdx.json"
     out.write_text(json.dumps(sbom, indent=2, ensure_ascii=False), encoding="utf-8")
