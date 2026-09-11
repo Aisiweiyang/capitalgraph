@@ -8,6 +8,7 @@ from cg_domain.enums import EntityKind
 from cg_domain.models import scaled_to_percent
 from cg_domain.orm import Entity, Statement
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 
 from cg_api.auth import ViewerUser
 from cg_api.deps import Repo
@@ -69,6 +70,40 @@ async def search_entities(
         total=total,
         hits=[EntityHit(id=h.id, kind=h.kind, primary_name=h.primary_name) for h in hits],
     )
+
+
+@router.get("/by-region/{code}")
+async def entities_by_region(
+    repo: Repo,
+    _user: ViewerUser,
+    code: str,
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """某省级行政区划下的主体（地图下钻）。仅返回活跃（未合并）主体。"""
+    rows = (
+        await repo.session.execute(
+            select(Entity)
+            .where(
+                Entity.region_code == code,
+                Entity.merged_into_id.is_(None),
+            )
+            .order_by(Entity.primary_name)
+            .limit(limit)
+        )
+    ).scalars().all()
+    return {
+        "region_code": code,
+        "count": len(rows),
+        "entities": [
+            {
+                "id": e.id,
+                "kind": e.kind,
+                "primary_name": e.primary_name,
+                "industry": e.industry,
+            }
+            for e in rows
+        ],
+    }
 
 
 async def _load_entity(repo, entity_id: str) -> Entity:
