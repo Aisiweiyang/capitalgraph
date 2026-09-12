@@ -29,6 +29,7 @@ class FlowEdge:
     ratio_scaled: int | None
     amount_scaled: int | None
     year: int
+    subject_id: str | None = None  # 出资方实体；族间流向聚合（families.family_flows）需要
 
 
 @dataclass(frozen=True)

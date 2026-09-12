@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./auth";
 import { LoginPage } from "./pages/Login";
 import { DashboardPage } from "./pages/Dashboard";
 import { FlowsPage } from "./pages/Flows";
+import { FamiliesPage } from "./pages/Families";
 import { SearchPage } from "./pages/Search";
 import { EntityPage } from "./pages/Entity";
 import { ExplorePage } from "./pages/Explore";
@@ -18,6 +19,7 @@ function Header() {
       <nav>
         <NavLink to="/dashboard">总览</NavLink>
         <NavLink to="/flows">资本流动</NavLink>
+        <NavLink to="/families">资本系谱</NavLink>
         <NavLink to="/">检索</NavLink>
         <NavLink to="/explore">穿透图</NavLink>
         {auth.hasRole("analyst") && <NavLink to="/review">复核</NavLink>}
@@ -56,6 +58,7 @@ export function App() {
               <Route path="/" element={<SearchPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/flows" element={<FlowsPage />} />
+              <Route path="/families" element={<FamiliesPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/entities/:id" element={<EntityPage />} />
               <Route path="/explore" element={<ExplorePage />} />

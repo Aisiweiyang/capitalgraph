@@ -239,6 +239,75 @@ export interface RegionEntitiesOut {
   }[];
 }
 
+export interface FamilySummary {
+  family_id: string;
+  controllers: string[];
+  controller_names: string[];
+  member_count: number;
+  region_coverage: number;
+  regions: [string, number][];
+  region_unknown: number;
+  cycle_count: number;
+  internal_edge_count: number;
+  density: number | null;
+  truncated: boolean;
+}
+
+export interface FamiliesListOut {
+  at: string | null;
+  algorithm_version: string;
+  config_hash: string;
+  min_control_ratio_percent: number;
+  count: number;
+  returned: number;
+  unassigned_entity_count: number;
+  missing_ratio_holding_edges: number;
+  assumptions: string[];
+  families: FamilySummary[];
+}
+
+export interface FamilyMember {
+  entity_id: string;
+  name: string;
+  kind: string | null;
+  region_code: string | null;
+  controller: string;
+  path: string[];
+  path_names: string[];
+  depth: number;
+  statement_ids: string[];
+}
+
+export interface FamilyDetail extends FamilySummary {
+  at: string | null;
+  algorithm_version: string;
+  config_hash: string;
+  min_control_ratio_percent: number;
+  members: FamilyMember[];
+  cycles: string[][];
+  unassigned_entity_count: number;
+  assumptions: string[];
+}
+
+export interface FamilyFlowRow {
+  from_family: string;
+  to_family: string;
+  edge_count: number;
+  amount_edges: number;
+  amount_wan: number | null;
+  amount_missing_edges: number;
+}
+
+export interface FamiliesFlowsOut {
+  rows: FamilyFlowRow[];
+  intra_family_edges: number;
+  ungrouped_edges: number;
+  family_names: Record<string, string>;
+  algorithm_version: string;
+  at: string | null;
+  count: number;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>("/auth/login", {
@@ -272,6 +341,37 @@ export const api = {
 
   entitiesByRegion: (code: string, limit = 50) =>
     request<RegionEntitiesOut>(`/entities/by-region/${code}?limit=${limit}`),
+
+  families: (params: {
+    at?: string;
+    min_control_ratio_percent?: string;
+    sort_by?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.at) qs.set("at", params.at);
+    if (params.min_control_ratio_percent)
+      qs.set("min_control_ratio_percent", params.min_control_ratio_percent);
+    if (params.sort_by) qs.set("sort_by", params.sort_by);
+    const query = qs.toString();
+    return request<FamiliesListOut>(`/families${query ? `?${query}` : ""}`);
+  },
+
+  family: (root: string, at?: string, minControlRatio?: string) => {
+    const qs = new URLSearchParams();
+    if (at) qs.set("at", at);
+    if (minControlRatio) qs.set("min_control_ratio_percent", minControlRatio);
+    const query = qs.toString();
+    return request<FamilyDetail>(`/families/${root}${query ? `?${query}` : ""}`);
+  },
+
+  familiesFlows: (params: { at?: string; min_control_ratio_percent?: string }) => {
+    const qs = new URLSearchParams();
+    if (params.at) qs.set("at", params.at);
+    if (params.min_control_ratio_percent)
+      qs.set("min_control_ratio_percent", params.min_control_ratio_percent);
+    const query = qs.toString();
+    return request<FamiliesFlowsOut>(`/families/flows${query ? `?${query}` : ""}`);
+  },
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),

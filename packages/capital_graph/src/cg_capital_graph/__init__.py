@@ -28,6 +28,16 @@ from cg_capital_graph.engine import (
     build_adjacency,
     penetrate,
 )
+from cg_capital_graph.families import (
+    FAMILIES_ALGORITHM_VERSION,
+    FAMILIES_ASSUMPTIONS,
+    FamiliesConfig,
+    FamiliesResult,
+    Family,
+    MemberInfo,
+    family_flows,
+    identify_families,
+)
 from cg_capital_graph.flows import (
     FlowEdge,
     RegionFlow,
@@ -40,10 +50,16 @@ from cg_capital_graph.flows import (
 
 __all__ = [
     "ALGORITHM_VERSION",
+    "FAMILIES_ALGORITHM_VERSION",
+    "FAMILIES_ASSUMPTIONS",
     "AnalysisReport",
     "CrossHolding",
+    "FamiliesConfig",
+    "FamiliesResult",
+    "Family",
     "FlowEdge",
     "GraphEdge",
+    "MemberInfo",
     "PathResult",
     "PenetrationResult",
     "PenetrationTimeoutError",
@@ -59,7 +75,9 @@ __all__ = [
     "cross_holdings",
     "cross_region",
     "detect_cycles",
+    "family_flows",
     "flow_timeline",
+    "identify_families",
     "industry_flows",
     "penetrate",
     "region_summary",
