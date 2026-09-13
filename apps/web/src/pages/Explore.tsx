@@ -129,7 +129,12 @@ export function ExplorePage() {
         </label>
         <label>
           时间点
-          <input type="date" value={at} onChange={(e) => setAt(e.target.value)} />
+          <input
+            type="date"
+            value={at}
+            onChange={(e) => setAt(e.target.value)}
+            data-testid="explore-at"
+          />
         </label>
         <label>
           层级 {depth}

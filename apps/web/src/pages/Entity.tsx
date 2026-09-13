@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type EntityDetail, type EventsOut, type EvidenceFragment, type RiskChainsOut } from "../api";
 import { kindLabel } from "./Search";
 import { formatChain, formatNominal, formatPropagationLevel } from "../riskDisplay";
@@ -25,6 +25,10 @@ export function predicateLabel(p: string): string {
 
 export function EntityPage() {
   const { id = "" } = useParams();
+  const [params, setParams] = useSearchParams();
+  // 变更轨迹窗口（v0.5.1）：可调并写入 URL 查询参数，支持深链分享
+  const eventsFrom = params.get("events_from") ?? "2022-01-01";
+  const eventsTo = params.get("events_to") ?? "2023-01-01";
   const [detail, setDetail] = useState<EntityDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<{ sid: string; fragments: EvidenceFragment[] } | null>(
@@ -48,12 +52,19 @@ export function EntityPage() {
       .riskChains(id)
       .then(setRisk)
       .catch(() => setRisk(null));
-    // 变更轨迹区（v0.5 切片 A）：默认窗口 2022-01-01 → 2023-01-01
+    // 变更轨迹区（v0.5 切片 A）：窗口可调，默认 2022-01-01 → 2023-01-01
     api
-      .entityEvents(id, "2022-01-01", "2023-01-01")
+      .entityEvents(id, eventsFrom, eventsTo)
       .then(setEvents)
       .catch(() => setEvents(null));
-  }, [id]);
+  }, [id, eventsFrom, eventsTo]);
+
+  function updateEventsWindow(next: { from?: string; to?: string }) {
+    const p = new URLSearchParams(params);
+    if (next.from) p.set("events_from", next.from);
+    if (next.to) p.set("events_to", next.to);
+    setParams(p, { replace: true });
+  }
 
   async function showEvidence(statementId: string) {
     if (evidence?.sid === statementId) {
@@ -124,22 +135,46 @@ export function EntityPage() {
         <StatementTable rows={detail.outgoing} onEvidence={showEvidence} selfId={detail.id} />
       </section>
 
-      {events && events.total > 0 && (
+      {events && (
         <section>
           <h3>变更轨迹（{events.from} ~ {events.to} · 声明层面）</h3>
-          <ol className="timeline" data-testid="entity-events">
-            {events.events.slice(0, 20).map((ev, i) => (
-              <li key={i} className={`timeline-item tone-${eventTone(ev.event_type)}`}>
-                <span className="tag">{ev.event_type_label}</span>
-                <span className="timeline-body">{formatEventSummary(ev)}</span>
-                <span className="timeline-actions">
-                  <button className="linklike" onClick={() => showEvidence(ev.evidence_keys[0])}>
-                    证据
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ol>
+          <div className="controls">
+            <label>
+              自
+              <input
+                type="date"
+                value={eventsFrom}
+                onChange={(e) => updateEventsWindow({ from: e.target.value })}
+                data-testid="entity-events-from"
+              />
+            </label>
+            <label>
+              至
+              <input
+                type="date"
+                value={eventsTo}
+                onChange={(e) => updateEventsWindow({ to: e.target.value })}
+                data-testid="entity-events-to"
+              />
+            </label>
+          </div>
+          {events.total === 0 ? (
+            <div className="state-empty">该窗口内与该实体相关的声明没有变化，可调整窗口后重试。</div>
+          ) : (
+            <ol className="timeline" data-testid="entity-events">
+              {events.events.slice(0, 20).map((ev, i) => (
+                <li key={i} className={`timeline-item tone-${eventTone(ev.event_type)}`}>
+                  <span className="tag">{ev.event_type_label}</span>
+                  <span className="timeline-body">{formatEventSummary(ev)}</span>
+                  <span className="timeline-actions">
+                    <button className="linklike" onClick={() => showEvidence(ev.evidence_keys[0])}>
+                      证据
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
           <p className="muted">
             口径：{events.algorithm_version} · <Link to="/events">查看全局异动</Link>
           </p>

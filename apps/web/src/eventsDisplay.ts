@@ -1,4 +1,7 @@
-/** 变更事件流的展示口径（纯函数，供异动页/实体页变更轨迹复用与单测）。 */
+/** 变更事件流的展示口径（纯函数，供异动页/实体页变更轨迹复用与单测）。
+ *
+ * v0.5.1：类型筛选改由服务端 event_type 参数承担，本模块不再做客户端过滤。
+ */
 
 import type { EventItem, EventsOut } from "./api";
 
@@ -43,12 +46,6 @@ export function formatDelta(delta: number | null): string {
   if (delta == null) return "—";
   const sign = delta > 0 ? "+" : "";
   return `${sign}${delta}%`;
-}
-
-/** 按事件类型筛选（type 为空串/undefined 时返回全部）。 */
-export function filterEvents(events: EventItem[], type: string | undefined): EventItem[] {
-  if (!type) return events;
-  return events.filter((e) => e.event_type === type);
 }
 
 /** 时间线分组：按事件类型 → 计数（供筛选条 chips）。 */

@@ -173,3 +173,41 @@ cd apps/web && npm install && npm run dev
 3. /events 全量分页加载两时点快照后内存对比，千万级声明需引入数据库侧 diff 或游标分片。
 4. 覆盖率只统计"有无证据片段"，不评估证据内容质量/时效（stale_source 已有 QualityIssue 通道）。
 5. 报告证据表上限 200 条声明（lookup 单次上限），更大报告需分批导出。
+
+## v0.5.1 优化记录（2026-09-14，前端性能与体验，后端零改动）
+
+### 优化内容与动机
+
+| 项 | 动机（v0.5 已知状态） | 改动 |
+| --- | --- | --- |
+| A 路由级代码分割 | 单 chunk 1,901.85KB（gzip 627.19KB），构建即告警 | App.tsx 全部页面路由 React.lazy + Suspense；echarts/cytoscape 以 manualChunks 独立命名 vendor chunk；chunkSizeWarningLimit 1200 并注释理由 |
+| B 报告证据分批 | /evidence/lookup 单次 200 条上限截断报告证据表 | reportEvidence.ts：chunkIds 纯函数按 200 切批（与后端上限一致），总上限提升至 1000 条；批间合并；任一批失败整体降级为无证据表 |
+| C 异动页分页 | 一次性拉 500 条做客户端过滤 | 类型筛选改服务端 event_type 参数；"加载更多"offset/limit 分页（页大小 100）；eventsDisplay 移除客户端 filterEvents |
+| D 变更轨迹窗口可调 | 实体页变更轨迹窗口硬编码 | from/to 日期选择写入 URL 查询参数（events_from/events_to，replace 导航）支持深链；窗口内无事件显式空态 |
+
+### 构建体积实测（npm run build）
+
+| 指标 | v0.5（前） | v0.5.1（后） |
+| --- | --- | --- |
+| 首屏 JS（index） | 1,901.85 KB / gzip 627.19 KB | **175.88 KB / gzip 58.08 KB（−90.7%）** |
+| echarts（懒加载，Flows 等页触发） | 混在主包 | vendor-echarts 627.66 KB / gzip 205.46 KB |
+| cytoscape（懒加载，穿透/系谱页触发） | 混在主包 | vendor-cytoscape 434.85 KB / gzip 137.78 KB |
+| 页面 chunk | 无 | 每页 0.6–15 KB 级（Search/Admin/Events/Review/Dashboard/Evidence/Entity/Explore/Families/Flows） |
+
+### 实际命令与结果（全部本机实测）
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd apps/web && npx tsc -b && npm run build` | 类型检查通过，构建成功（体积见上表） |
+| `cd apps/web && npx vitest run` | **50 passed**（11 文件；基线 42 → 50，新增 reportEvidence 分批 8 项，移除客户端筛选用例） |
+| `CG_API_PROXY=… npx playwright test` | **16 passed**（全部既有用例保持通过） |
+| `uv run pytest tests --cov -q -p no:warnings` | **179 passed / 92.3%**（后端零改动，复跑确认） |
+| `uv run ruff check / format --check` | 通过（本轮无后端改动） |
+
+### 回归根因记录（E2E 选择器收窄）
+
+路由懒加载引入竞态：React Router 在新路由 chunk 加载期间保留旧页面 UI（transition 语义），
+实体页新增的日期输入（变更轨迹窗口）与 core-flow「切换历史时间点」的通用选择器
+`input[type="date"]` 冲突（穿透页自身输入尚未挂载）。处理：穿透图页时间点输入增加
+`data-testid="explore-at"`，该用例选择器收窄至页内专属 testid（断言语义不变：切换后
+侧栏标题含时点）。其余 15 项用例零改动通过。

@@ -47,7 +47,8 @@ test.describe.serial("CapitalGraph CN 核心链路", () => {
   test("切换历史时间点", async ({ page }) => {
     await page.goto(entityUrl);
     await page.getByRole("link", { name: "在穿透图中查看该主体" }).click();
-    await page.locator('input[type="date"]').fill("2020-01-01");
+    // v0.5.1 起实体页也有日期输入（变更轨迹窗口），此处用穿透图页专属 testid 收窄
+    await page.getByTestId("explore-at").fill("2020-01-01");
     await expect(page.locator(".side-pane h3")).toContainText("2020-01-01", { timeout: 15000 });
   });
 

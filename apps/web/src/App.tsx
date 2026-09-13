@@ -1,16 +1,32 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import { LoginPage } from "./pages/Login";
-import { DashboardPage } from "./pages/Dashboard";
-import { FlowsPage } from "./pages/Flows";
-import { FamiliesPage } from "./pages/Families";
-import { EventsPage } from "./pages/Events";
-import { EvidencePage } from "./pages/Evidence";
-import { SearchPage } from "./pages/Search";
-import { EntityPage } from "./pages/Entity";
-import { ExplorePage } from "./pages/Explore";
-import { ReviewPage } from "./pages/Review";
-import { AdminPage } from "./pages/Admin";
+
+// 路由级代码分割：echarts/cytoscape/china.json 等重组件随页面按需加载，
+// 首屏只下载壳与检索页（构建体积对比见 TEST_REPORT §v0.5.1）。
+const DashboardPage = lazy(() =>
+  import("./pages/Dashboard").then((m) => ({ default: m.DashboardPage })),
+);
+const FlowsPage = lazy(() => import("./pages/Flows").then((m) => ({ default: m.FlowsPage })));
+const FamiliesPage = lazy(() =>
+  import("./pages/Families").then((m) => ({ default: m.FamiliesPage })),
+);
+const EventsPage = lazy(() => import("./pages/Events").then((m) => ({ default: m.EventsPage })));
+const EvidencePage = lazy(() =>
+  import("./pages/Evidence").then((m) => ({ default: m.EvidencePage })),
+);
+const SearchPage = lazy(() => import("./pages/Search").then((m) => ({ default: m.SearchPage })));
+const EntityPage = lazy(() => import("./pages/Entity").then((m) => ({ default: m.EntityPage })));
+const ExplorePage = lazy(() =>
+  import("./pages/Explore").then((m) => ({ default: m.ExplorePage })),
+);
+const ReviewPage = lazy(() => import("./pages/Review").then((m) => ({ default: m.ReviewPage })));
+const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
+
+function PageFallback() {
+  return <div className="muted">模块加载中…</div>;
+}
 
 function Header() {
   const auth = useAuth();
@@ -58,7 +74,8 @@ export function App() {
         <div className="app">
           <Header />
           <main className="main">
-            <Routes>
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
               <Route path="/" element={<SearchPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/flows" element={<FlowsPage />} />
@@ -85,7 +102,8 @@ export function App() {
                   </RoleGate>
                 }
               />
-            </Routes>
+              </Routes>
+            </Suspense>
           </main>
           <footer className="footer">
             所有穿透与 UBO 结果均为算法候选，附证据与假设，不构成法律认定。

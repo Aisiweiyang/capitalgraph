@@ -1,41 +1,68 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type EventsOut } from "../api";
-import {
-  EVENT_TYPE_LABELS,
-  eventTone,
-  filterEvents,
-  formatEventSummary,
-  typeChips,
-} from "../eventsDisplay";
+import { api, type EventItem, type EventsOut } from "../api";
+import { EVENT_TYPE_LABELS, eventTone, formatEventSummary, typeChips } from "../eventsDisplay";
 
-/** 全局异动页（v0.5 切片 A）：from/to 窗口内的声明层面变更事件流。 */
+const PAGE_SIZE = 100; // 服务端分页页大小（/events offset+limit）
+
+/** 全局异动页（v0.5 切片 A，v0.5.1 分页优化）：
+ * from/to 窗口内的声明层面变更事件流；类型筛选走服务端参数，长列表"加载更多"分页。
+ */
 export function EventsPage() {
   const [from, setFrom] = useState("2022-01-01");
   const [to, setTo] = useState("2023-01-01");
   const [type, setType] = useState("");
-  const [data, setData] = useState<EventsOut | null>(null);
+  const [items, setItems] = useState<EventItem[]>([]);
+  const [meta, setMeta] = useState<EventsOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
-      setData(await api.events({ from: from || undefined, to: to || undefined, limit: 500 }));
+      const out = await api.events({
+        from: from || undefined,
+        to: to || undefined,
+        event_type: type || undefined,
+        limit: PAGE_SIZE,
+      });
+      setItems(out.events);
+      setMeta(out);
     } catch (err) {
       setError(err instanceof Error ? err.message : "异动数据加载失败");
     } finally {
       setBusy(false);
     }
-  }, [from, to]);
+  }, [from, to, type]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const visible = data ? filterEvents(data.events, type) : [];
-  const chips = data ? typeChips(data) : [];
+  const loadMore = useCallback(async () => {
+    if (!meta || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const out = await api.events({
+        from: from || undefined,
+        to: to || undefined,
+        event_type: type || undefined,
+        limit: PAGE_SIZE,
+        offset: items.length,
+      });
+      setItems((prev) => [...prev, ...out.events]);
+      setMeta(out);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载更多失败");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [meta, loadingMore, items.length, from, to, type]);
+
+  const chips = meta ? typeChips(meta) : [];
+  const hasMore = meta != null && items.length < meta.total;
 
   return (
     <div className="events-page">
@@ -72,12 +99,12 @@ export function EventsPage() {
 
       {error && <div className="state-error">{error}</div>}
 
-      {data && (
+      {meta && (
         <>
           <div className="stat-cards">
             <div className="stat-card">
-              <div className="stat-value">{data.total}</div>
-              <div className="stat-label">事件总数（{data.from} ~ {data.to}）</div>
+              <div className="stat-value">{meta.total}</div>
+              <div className="stat-label">事件总数（{meta.from} ~ {meta.to}）</div>
             </div>
             <div className="stat-card">
               <div className="stat-value">{chips.length}</div>
@@ -91,12 +118,13 @@ export function EventsPage() {
                 className={`chip ${type === "" ? "chip-active" : ""}`}
                 onClick={() => setType("")}
               >
-                全部（{data.events.length}）
+                全部（{meta.total}）
               </button>
               {chips.map((c) => (
                 <button
                   key={c.type}
                   className={`chip ${type === c.type ? "chip-active" : ""}`}
+                  title="全窗口事件计数，点击按该类型筛选"
                   onClick={() => setType(type === c.type ? "" : c.type)}
                 >
                   {c.label}（{c.count}）
@@ -105,39 +133,50 @@ export function EventsPage() {
             </div>
           )}
 
-          {visible.length === 0 ? (
+          {items.length === 0 ? (
             <div className="state-empty">该窗口与筛选条件下没有变更事件（两时点格局一致）。</div>
           ) : (
-            <ol className="timeline" data-testid="events-list">
-              {visible.slice(0, 200).map((ev, i) => (
-                <li key={i} className={`timeline-item tone-${eventTone(ev.event_type)}`}>
-                  <span className="tag">{ev.event_type_label}</span>
-                  <span className="timeline-body">{formatEventSummary(ev)}</span>
-                  <span className="timeline-actions">
-                    <Link
-                      to={`/entities/${ev.object_id}`}
-                      title={ev.object_name}
-                    >
-                      实体
-                    </Link>
-                    {ev.evidence_keys.length > 0 && (
-                      <Link
-                        to={`/evidence?statements=${ev.evidence_keys.join(",")}`}
-                        data-testid="event-evidence-link"
-                      >
-                        证据
+            <>
+              <ol className="timeline" data-testid="events-list">
+                {items.map((ev, i) => (
+                  <li key={`${ev.event_type}-${i}`} className={`timeline-item tone-${eventTone(ev.event_type)}`}>
+                    <span className="tag">{ev.event_type_label}</span>
+                    <span className="timeline-body">{formatEventSummary(ev)}</span>
+                    <span className="timeline-actions">
+                      <Link to={`/entities/${ev.object_id}`} title={ev.object_name}>
+                        实体
                       </Link>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ol>
+                      {ev.evidence_keys.length > 0 && (
+                        <Link
+                          to={`/evidence?statements=${ev.evidence_keys.join(",")}`}
+                          data-testid="event-evidence-link"
+                        >
+                          证据
+                        </Link>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p className="muted">
+                已载入 {items.length}/{meta.total}
+                {type ? `（按「${EVENT_TYPE_LABELS[type] ?? type}」筛选）` : ""}
+                {hasMore && (
+                  <>
+                    {" "}
+                    <button className="linklike" onClick={() => void loadMore()} disabled={loadingMore}>
+                      {loadingMore ? "加载中…" : "加载更多"}
+                    </button>
+                  </>
+                )}
+              </p>
+            </>
           )}
 
           <details className="assumptions">
-            <summary>口径说明（{data.algorithm_version}）</summary>
+            <summary>口径说明（{meta.algorithm_version}）</summary>
             <ul>
-              {data.assumptions.map((a, i) => (
+              {meta.assumptions.map((a, i) => (
                 <li key={i}>{a}</li>
               ))}
             </ul>

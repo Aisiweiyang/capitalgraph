@@ -156,3 +156,15 @@ cd apps/web && npm install && npm run dev
 
 见 TEST_REPORT.md §v0.5 已知限制（事件不含 recorded_at 中间粒度、同键多声明归因退化、
 超大规模需数据库侧 diff、覆盖率不评估证据内容质量、报告证据表上限 200 条）。
+
+## v0.5.1 优化交付（2026-09-14）：性能与体验（后端零改动）
+
+| 优化 | 效果 |
+| --- | --- |
+| 路由级代码分割（React.lazy + Suspense + vendor chunk 命名） | 首屏 JS 1,901.85KB（gzip 627.19KB）→ **175.88KB（gzip 58.08KB，−90.7%）**；echarts/cytoscape 按页懒加载 |
+| 报告证据收集分批 | lookup 每批 200 条、总上限 1000 条；任一批失败降级为无证据表 |
+| 异动页服务端筛选 + 分页 | event_type 下推服务端；"加载更多"页大小 100 |
+| 变更轨迹窗口可调 | from/to 写入 URL（events_from/events_to）支持深链；空窗显式空态 |
+
+实测：vitest 42→50 项、E2E 16 项全绿（含 1 项选择器收窄，见 TEST_REPORT §v0.5.1）、
+后端复跑 179 passed / 92.3%。详见 TEST_REPORT §v0.5.1。

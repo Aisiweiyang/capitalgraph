@@ -3,7 +3,6 @@ import type { EventItem, EventsOut } from "./api";
 import {
   EVENT_TYPE_LABELS,
   eventTone,
-  filterEvents,
   formatDelta,
   formatEventSummary,
   typeChips,
@@ -66,18 +65,6 @@ describe("eventsDisplay", () => {
     expect(formatDelta(10)).toBe("+10%");
     expect(formatDelta(-0.5)).toBe("-0.5%");
     expect(formatDelta(null)).toBe("—");
-  });
-
-  it("类型筛选：空类型返回全部，非空只留匹配项", () => {
-    const list = [
-      ev({ event_type: "holding_added" }),
-      ev({ event_type: "holding_removed" }),
-      ev({ event_type: "holding_added" }),
-    ];
-    expect(filterEvents(list, "")).toHaveLength(3);
-    expect(filterEvents(list, undefined)).toHaveLength(3);
-    expect(filterEvents(list, "holding_added")).toHaveLength(2);
-    expect(filterEvents(list, "control_lost")).toHaveLength(0);
   });
 
   it("筛选 chips 由 counts_by_type 派生并带中文标签", () => {
