@@ -168,3 +168,8 @@ cd apps/web && npm install && npm run dev
 
 实测：vitest 42→50 项、E2E 16 项全绿（含 1 项选择器收窄，见 TEST_REPORT §v0.5.1）、
 后端复跑 179 passed / 92.3%。详见 TEST_REPORT §v0.5.1。
+
+### 提示词归档
+
+驱动各轮交付的 ZCode 提示词自 v0.5.1 起随仓库归档于 `docs/prompts/`（05 资本异动与证据
+工作台、05.1 性能与体验优化），作为版本演进的需求侧档案；后续轮次沿用该惯例。
