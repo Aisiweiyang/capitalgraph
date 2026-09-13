@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   api,
@@ -14,11 +14,14 @@ import {
   REGION_NAME_BY_CODE,
   type EChartsCoreOption,
 } from "../components/EChart";
+import { replayYears, runReplay, yearEndIso, type ReplayFrame } from "../replay";
 
 type WeightMode = "amount" | "count";
 
 /** 地图着色口径：净流入（绿）— 净流出（红）双向色标；仅表达数据分布。 */
 const DIVERGING_COLORS = ["#c0392b", "#e67e22", "#f5f5f0", "#27ae60", "#145a32"];
+
+const REPLAY_INTERVAL_MS = 800; // 节流渲染：每帧停留时长
 
 function regionName(code: string): string {
   return REGION_NAME_BY_CODE[code] ?? code;
@@ -72,15 +75,95 @@ export function FlowsPage() {
       .catch(() => setRegionEntities(null));
   }, [selected]);
 
+  // ------------------------------------------------------------- 按年回放
+  const years = useMemo(() => replayYears(timeline), [timeline]);
+  const [replayOn, setReplayOn] = useState(false);
+  const [frame, setFrame] = useState<ReplayFrame | null>(null);
+  const [yearIndex, setYearIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const cacheRef = useRef<Map<number, ReplayFrame>>(new Map());
+
+  const fetchFrame = useCallback(async (year: number, signal: AbortSignal): Promise<ReplayFrame> => {
+    const cached = cacheRef.current.get(year);
+    if (cached) return cached;
+    const at = yearEndIso(year);
+    const [s, f] = await Promise.all([
+      api.flowsSummary(at, signal),
+      api.flowsRegions({ at, limit: 500 }, signal),
+    ]);
+    const next: ReplayFrame = { year, summary: s, flows: f.flows };
+    cacheRef.current.set(year, next);
+    return next;
+  }, []);
+
+  const pauseReplay = useCallback(() => {
+    abortRef.current?.abort();
+    setPlaying(false);
+  }, []);
+
+  const startReplay = useCallback(() => {
+    if (years.length === 0) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setReplayOn(true);
+    setPlaying(true);
+    void runReplay({
+      years,
+      fetchFrame,
+      onFrame: (f) => {
+        setFrame(f);
+        setYearIndex(years.indexOf(f.year));
+      },
+      intervalMs: REPLAY_INTERVAL_MS,
+      signal: controller.signal,
+    }).finally(() => {
+      if (abortRef.current === controller) setPlaying(false);
+    });
+  }, [years, fetchFrame]);
+
+  const seekYear = useCallback(
+    async (idx: number) => {
+      const year = years[idx];
+      if (year == null) return;
+      pauseReplay();
+      setReplayOn(true);
+      setYearIndex(idx);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      try {
+        setFrame(await fetchFrame(year, controller.signal));
+      } catch {
+        /* 取消或加载失败：保留当前帧 */
+      }
+    },
+    [years, fetchFrame, pauseReplay],
+  );
+
+  const exitReplay = useCallback(() => {
+    pauseReplay();
+    setReplayOn(false);
+    setFrame(null);
+    setYearIndex(0);
+  }, [pauseReplay]);
+
+  // 卸载时取消进行中的预取
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // 回放帧启用时，地图/排名/卡片以该帧数据呈现（请求预算 = 年数 × 2）
+  const viewSummary = replayOn && frame ? frame.summary : summary;
+  const viewFlows = replayOn && frame ? frame.flows : flows;
+
   const netByRegion = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of summary?.regions ?? []) map.set(r.region, r.net_wan);
+    for (const r of viewSummary?.regions ?? []) map.set(r.region, r.net_wan);
     return map;
-  }, [summary]);
+  }, [viewSummary]);
 
   const mapOption = useMemo<EChartsCoreOption>(() => {
     const lineColor = weight === "amount" ? "#1f6feb" : "#8e44ad";
-    const topFlows = [...flows].sort((a, b) => flowWeight(b) - flowWeight(a)).slice(0, 40);
+    const topFlows = [...viewFlows].sort((a, b) => flowWeight(b) - flowWeight(a)).slice(0, 40);
     return {
       tooltip: { trigger: "item" },
       visualMap: {
@@ -154,10 +237,10 @@ export function FlowsPage() {
     function maxAbsNet(): number {
       return Math.max(...[...netByRegion.values()].map(Math.abs), 1);
     }
-  }, [flows, netByRegion, weight]);
+  }, [viewFlows, netByRegion, weight]);
 
   const rankingOption = useMemo<EChartsCoreOption>(() => {
-    const rows = [...(summary?.regions ?? [])]
+    const rows = [...(viewSummary?.regions ?? [])]
       .sort((a, b) => b.inflow_wan + b.outflow_wan - (a.inflow_wan + a.outflow_wan))
       .slice(0, 12);
     return {
@@ -185,7 +268,7 @@ export function FlowsPage() {
         },
       ],
     };
-  }, [summary]);
+  }, [viewSummary]);
 
   const sankeyOption = useMemo<EChartsCoreOption>(() => {
     const top = industries.slice(0, 60);
@@ -259,10 +342,10 @@ export function FlowsPage() {
   const selectedFlows = useMemo(() => {
     if (!selected) return null;
     return {
-      out: flows.filter((f) => f.from_region === selected),
-      in: flows.filter((f) => f.to_region === selected),
+      out: viewFlows.filter((f) => f.from_region === selected),
+      in: viewFlows.filter((f) => f.to_region === selected),
     };
-  }, [flows, selected]);
+  }, [viewFlows, selected]);
 
   if (error)
     return (
@@ -283,7 +366,10 @@ export function FlowsPage() {
   return (
     <div className="flows">
       <div className="row between">
-        <h2>资本流动（省际 · 合成演示数据）</h2>
+        <h2>
+          资本流动（省际 · 合成演示数据）
+          {replayOn && frame && <span className="tag">回放帧：{frame.year} 年</span>}
+        </h2>
         <label className="muted">
           线宽口径
           <select value={weight} onChange={(e) => setWeight(e.target.value as WeightMode)}>
@@ -293,30 +379,62 @@ export function FlowsPage() {
         </label>
       </div>
 
-      {summary && (
+      {viewSummary && (
         <div className="stat-cards">
           <div className="stat-card">
-            <div className="stat-value">{summary.flow_count}</div>
+            <div className="stat-value">{viewSummary.flow_count}</div>
             <div className="stat-label">省际流向</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{summary.regions.length}</div>
+            <div className="stat-value">{viewSummary.regions.length}</div>
             <div className="stat-label">覆盖省份</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{(summary.total_cross_amount_wan / 1e4).toFixed(1)} 亿</div>
+            <div className="stat-value">{(viewSummary.total_cross_amount_wan / 1e4).toFixed(1)} 亿</div>
             <div className="stat-label">跨区域流动总额</div>
           </div>
           <div className="stat-card" title="各省流出金额份额百分点的平方和，越高越集中">
-            <div className="stat-value">{summary.hhi ?? "—"}</div>
+            <div className="stat-value">{viewSummary.hhi ?? "—"}</div>
             <div className="stat-label">流出集中度 HHI</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{summary.cycles.cycle_count}</div>
-            <div className="stat-label">环路资金（跨省边 {summary.cycles.cross_region_cycle_edges}）</div>
+            <div className="stat-value">{viewSummary.cycles.cycle_count}</div>
+            <div className="stat-label">环路资金（跨省边 {viewSummary.cycles.cross_region_cycle_edges}）</div>
           </div>
         </div>
       )}
+
+      <section className="panel">
+        <h4>按年回放（以年末为时点逐帧演化，帧请求 = 年数 × 2）</h4>
+        {years.length === 0 ? (
+          <div className="state-empty">暂无可回放的年份帧。</div>
+        ) : (
+          <div className="controls">
+            <button onClick={() => (playing ? pauseReplay() : startReplay())}>
+              {playing ? "暂停" : "播放"}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={years.length - 1}
+              value={yearIndex}
+              aria-label="回放年份"
+              data-testid="replay-slider"
+              onChange={(e) => void seekYear(Number(e.target.value))}
+            />
+            <span className="muted">
+              {replayOn && frame
+                ? `${frame.year} 年（第 ${yearIndex + 1}/${years.length} 帧）`
+                : `${years[0]}–${years[years.length - 1]} 年，共 ${years.length} 帧`}
+            </span>
+            {replayOn && (
+              <button className="linklike" onClick={exitReplay}>
+                退出回放（回到当前）
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
       {selected && (
         <div className="state-info">

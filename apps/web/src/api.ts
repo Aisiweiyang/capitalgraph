@@ -373,7 +373,7 @@ export const api = {
 
   stats: () => request<StatsOut>("/stats"),
 
-  flowsRegions: (params: { at?: string; min_amount_wan?: string; limit?: number }) => {
+  flowsRegions: (params: { at?: string; min_amount_wan?: string; limit?: number }, signal?: AbortSignal) => {
     const qs = new URLSearchParams();
     if (params.at) qs.set("at", params.at);
     if (params.min_amount_wan) qs.set("min_amount_wan", params.min_amount_wan);
@@ -381,11 +381,12 @@ export const api = {
     const query = qs.toString();
     return request<{ at: string | null; count: number; flows: RegionFlowRow[] }>(
       `/flows/regions${query ? `?${query}` : ""}`,
+      { signal },
     );
   },
 
-  flowsSummary: (at?: string) =>
-    request<FlowsSummaryOut>(`/flows/summary${at ? `?at=${at}` : ""}`),
+  flowsSummary: (at?: string, signal?: AbortSignal) =>
+    request<FlowsSummaryOut>(`/flows/summary${at ? `?at=${at}` : ""}`, { signal }),
 
   flowsIndustries: (at?: string) =>
     request<{ at: string | null; rows: IndustryFlowRow[]; missing_industry_edges: number }>(

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { FlowsPage } from "./pages/Flows";
@@ -91,5 +91,25 @@ describe("FlowsPage", () => {
     renderFlows();
     expect(await screen.findByText(/合成演示数据/)).toBeInTheDocument();
     expect(screen.getByText(/DataV.GeoAtlas/)).toBeInTheDocument();
+  });
+});
+
+describe("FlowsPage 按年回放控件", () => {
+  it("渲染播放/暂停按钮、年份滑块与帧信息", async () => {
+    renderFlows();
+    expect(await screen.findByRole("button", { name: "播放" })).toBeInTheDocument();
+    expect(screen.getByTestId("replay-slider")).toBeInTheDocument();
+    expect(screen.getByText(/共 1 帧/)).toBeInTheDocument();
+    // 初始未回放：无"退出回放"
+    expect(screen.queryByText(/退出回放/)).not.toBeInTheDocument();
+  });
+
+  it("点击播放后进入回放帧并显示退出", async () => {
+    renderFlows();
+    fireEvent.click(await screen.findByRole("button", { name: "播放" }));
+    expect(await screen.findByText(/回放帧：2018 年/)).toBeInTheDocument();
+    expect(screen.getByText(/第 1\/1 帧/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "暂停" })).toBeInTheDocument();
+    expect(screen.getByText(/退出回放/)).toBeInTheDocument();
   });
 });
