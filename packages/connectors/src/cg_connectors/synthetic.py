@@ -108,15 +108,29 @@ class SyntheticConnector(BaseConnector):
             notes="由 SyntheticConnector 本地生成，无外部网络访问",
         )
 
+        # 先产出全部实体批次、再产出全部声明批次：同一入库事务内，实体先行落库后，
+        # 后续批次里跨批引用的主体键才能经标识符回查解析（大规格下否则会丢声明）。
+        # 文档登记随声明批次携带：证据片段的 document 归属按批内 documents 解析。
         for start in range(0, len(entities), _BATCH):
             batch_entities = entities[start : start + _BATCH]
-            batch_stmts = statements[start : start + _BATCH]
             result = ConnectorResult(
                 entities=batch_entities,
+                statements=[],
+            )
+            result.raw_payloads["synthetic-snapshot"] = json_dumps(
+                start, len(batch_entities), "entities"
+            )
+            yield result, None
+        for start in range(0, len(statements), _BATCH):
+            batch_stmts = statements[start : start + _BATCH]
+            result = ConnectorResult(
+                entities=[],
                 statements=batch_stmts,
                 documents=[doc],
             )
-            result.raw_payloads["synthetic-snapshot"] = json_dumps(graph, start)
+            result.raw_payloads["synthetic-snapshot"] = json_dumps(
+                start, len(batch_stmts), "statements"
+            )
             yield result, None
 
     # ------------------------------------------------------------------
@@ -366,10 +380,10 @@ class SyntheticConnector(BaseConnector):
         return {"entities": entities, "statements": statements, "documents": []}
 
 
-def json_dumps(graph: dict[str, Any], start: int) -> str:
+def json_dumps(start: int, count: int, kind: str) -> str:
     import json
 
     return json.dumps(
-        {"batch_start": start, "count": len(graph["entities"])},
+        {"batch_start": start, "count": count, "kind": kind},
         ensure_ascii=False,
     )

@@ -63,6 +63,8 @@ async def ingest_connector_result(
         if cache_key in fragment_cache:
             return fragment_cache[cache_key]
         if default_doc_id is None:
+            # 显式暴露：声明携带证据但批次未登记来源文档 → 证据链缺失可被质检发现
+            stats.issues.append("evidence-missing-document: 批次未登记来源文档，证据片段未入库")
             return None
         content = ev.raw_value.encode("utf-8")
         digest = hashlib.sha256(content).hexdigest()
