@@ -364,6 +364,178 @@ export interface RiskFlagOut {
   created_at: string;
 }
 
+// ------------------------------------------------------------ v0.5 变更事件流
+
+export interface EventItem {
+  event_type: string;
+  event_type_label: string;
+  subject_id: string;
+  subject_name: string;
+  object_id: string;
+  object_name: string;
+  predicate: string;
+  statement_ids: string[];
+  prior_statement_ids: string[];
+  evidence_keys: string[];
+  before_percent: number | null;
+  after_percent: number | null;
+  delta_percent: number | null;
+  ratio_comparable: boolean;
+}
+
+export interface EventsOut {
+  from: string;
+  to: string;
+  algorithm_version: string;
+  total: number;
+  returned: number;
+  offset: number;
+  counts_by_type: { event_type: string; label: string; count: number }[];
+  assumptions: string[];
+  events: EventItem[];
+}
+
+// ------------------------------------------------------------ v0.5 格局对比
+
+export interface FamiliesCompareOut {
+  from: string;
+  to: string;
+  min_control_ratio_percent: number;
+  algorithm_version: string;
+  family_count: { before: number; after: number; delta: number };
+  added_families: { family_id: string; family_name: string; member_count: number | null }[];
+  removed_families: { family_id: string; family_name: string; member_count: number | null }[];
+  changed: {
+    family_id: string;
+    family_name: string;
+    controllers_added: string[];
+    controllers_removed: string[];
+    members_added: string[];
+    members_removed: string[];
+    members_added_names: string[];
+    members_removed_names: string[];
+    path_changed: {
+      member: string;
+      controller_before: string;
+      controller_after: string;
+    }[];
+    path_changed_detail?: {
+      member: string;
+      member_name: string;
+      controller_before_name: string;
+      controller_after_name: string;
+    }[];
+    member_count_before: number;
+    member_count_after: number;
+    region_coverage_before: number;
+    region_coverage_after: number;
+    cycle_count_before: number;
+    cycle_count_after: number;
+  }[];
+  unchanged_count: number;
+  unassigned_entity_count: { before: number; after: number; delta: number };
+  assumptions: string[];
+}
+
+export interface FlowPairDelta {
+  from_region: string;
+  to_region: string;
+  edge_count_before: number;
+  edge_count_after: number;
+  amount_before_wan: number | null;
+  amount_after_wan: number | null;
+  amount_delta_wan: number | null;
+}
+
+export interface FlowsCompareOut {
+  from: string;
+  to: string;
+  algorithm_version: string;
+  totals: {
+    flow_count: { before: number; after: number; delta: number };
+    total_cross_amount_wan: { before: number; after: number; delta: number };
+    hhi: { before: number | null; after: number | null; delta: number | null };
+  };
+  flows_added: RegionFlowRow[];
+  flows_removed: RegionFlowRow[];
+  flows_changed: FlowPairDelta[];
+  flow_pair_delta_check: boolean;
+  assumptions: string[];
+  before_summary: FlowsSummaryOut;
+  after_summary: FlowsSummaryOut;
+}
+
+// ------------------------------------------------------------ v0.5 证据工作台
+
+export interface CoverageGroup {
+  key: string | number;
+  total: number;
+  covered: number;
+  missing: number;
+  coverage_percent: number | null;
+}
+
+export interface EvidenceCoverageOut {
+  at: string | null;
+  algorithm_version: string;
+  total_active_statements: number;
+  covered_statements: number;
+  missing_statements: number;
+  coverage_percent: number | null;
+  by_predicate: CoverageGroup[];
+  by_connector: CoverageGroup[];
+  by_year: CoverageGroup[];
+  missing_sample_size: number;
+  missing_samples: {
+    statement_id: string;
+    subject_id: string;
+    object_id: string;
+    predicate: string;
+    connector_id: string;
+    year: number;
+  }[];
+  assumptions: string[];
+}
+
+export interface EvidenceSnapshot {
+  snapshot_id: string;
+  content_sha256: string;
+  fetched_at: string;
+  http_status: number | null;
+  raw_stored: boolean;
+  fragment_count: number;
+  fragments: {
+    fragment_id: string;
+    field_path: string;
+    raw_value: string;
+    normalized_value: string;
+    page_ref: string;
+  }[];
+}
+
+export interface EvidenceDocument {
+  document_id: string;
+  title: string;
+  connector_id: string;
+  source_url: string;
+  notes: string;
+  accessed_at: string;
+  snapshots: EvidenceSnapshot[];
+}
+
+export interface EvidenceDocumentsOut {
+  count: number;
+  fragment_total: number;
+  documents: EvidenceDocument[];
+}
+
+export interface EvidenceLookupOut {
+  requested: number;
+  found: number;
+  missing_statement_ids: string[];
+  evidence: Record<string, EvidenceFragment[]>;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>("/auth/login", {
@@ -436,6 +608,54 @@ export const api = {
     ),
 
   riskFlags: (limit = 100) => request<RiskFlagOut[]>(`/risk/flags?limit=${limit}`),
+
+  // ------------------------------------------------------------ v0.5 变更事件流
+  events: (params: { from?: string; to?: string; event_type?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    if (params.event_type) qs.set("event_type", params.event_type);
+    if (params.limit) qs.set("limit", String(params.limit));
+    if (params.offset) qs.set("offset", String(params.offset));
+    const query = qs.toString();
+    return request<EventsOut>(`/events${query ? `?${query}` : ""}`);
+  },
+
+  entityEvents: (id: string, from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const query = qs.toString();
+    return request<EventsOut>(`/entities/${id}/events${query ? `?${query}` : ""}`);
+  },
+
+  // ------------------------------------------------------------ v0.5 格局对比
+  familiesCompare: (params: { from?: string; to?: string; min_control_ratio_percent?: string }) => {
+    const qs = new URLSearchParams();
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    if (params.min_control_ratio_percent)
+      qs.set("min_control_ratio_percent", params.min_control_ratio_percent);
+    const query = qs.toString();
+    return request<FamiliesCompareOut>(`/families/compare${query ? `?${query}` : ""}`);
+  },
+
+  flowsCompare: (from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const query = qs.toString();
+    return request<FlowsCompareOut>(`/flows/compare${query ? `?${query}` : ""}`);
+  },
+
+  // ------------------------------------------------------------ v0.5 证据工作台
+  evidenceCoverage: (at?: string) =>
+    request<EvidenceCoverageOut>(`/evidence/coverage${at ? `?at=${at}` : ""}`),
+
+  evidenceDocuments: () => request<EvidenceDocumentsOut>("/evidence/documents"),
+
+  evidenceLookup: (ids: string[]) =>
+    request<EvidenceLookupOut>(`/evidence/lookup?ids=${encodeURIComponent(ids.join(","))}`),
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),

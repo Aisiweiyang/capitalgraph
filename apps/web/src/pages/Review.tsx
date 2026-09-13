@@ -123,6 +123,19 @@ export function ReviewPage() {
                       : (f.payload.note as string | undefined) ??
                         JSON.stringify(f.payload).slice(0, 80)}
                   </code>
+                  {(() => {
+                    // deep-link（v0.5 切片 C）：payload 内的声明引用一键打开证据
+                    const ids = [
+                      ...((f.payload.statement_ids as string[] | undefined) ?? []),
+                      ...((f.payload.via_statement_ids as string[] | undefined) ?? []),
+                    ].filter(Boolean);
+                    return ids.length > 0 ? (
+                      <>
+                        {" "}
+                        <Link to={`/evidence?statements=${ids.join(",")}`}>证据</Link>
+                      </>
+                    ) : null;
+                  })()}
                 </td>
                 <td>
                   <span className={`tag status-${f.status}`}>{f.status}</span>

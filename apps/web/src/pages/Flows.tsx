@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   api,
+  type FlowsCompareOut,
   type FlowsSummaryOut,
   type IndustryFlowRow,
   type RegionEntitiesOut,
@@ -17,6 +18,7 @@ import {
 } from "../components/EChart";
 import { replayYears, runReplay, yearEndIso, type ReplayFrame } from "../replay";
 import { assembleReportHtml, downloadReport } from "../report";
+import { flowsMetricRows } from "../compareDisplay";
 
 type WeightMode = "amount" | "count";
 
@@ -39,6 +41,26 @@ export function FlowsPage() {
   const [regionEntities, setRegionEntities] = useState<RegionEntitiesOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
+
+  // 对比模式（v0.5 切片 B）
+  const [compareOn, setCompareOn] = useState(false);
+  const [cmpFrom, setCmpFrom] = useState("2022-01-01");
+  const [cmpTo, setCmpTo] = useState("2023-01-01");
+  const [compare, setCompare] = useState<FlowsCompareOut | null>(null);
+
+  const loadCompare = useCallback(async () => {
+    setError(null);
+    try {
+      setCompare(await api.flowsCompare(cmpFrom || undefined, cmpTo || undefined));
+    } catch (err) {
+      setCompare(null);
+      setError(err instanceof Error ? err.message : "流动对比加载失败");
+    }
+  }, [cmpFrom, cmpTo]);
+
+  useEffect(() => {
+    if (compareOn) void loadCompare();
+  }, [compareOn, loadCompare]);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -381,6 +403,12 @@ export function FlowsPage() {
             <option value="count">笔数</option>
           </select>
         </label>
+        <button
+          onClick={() => setCompareOn(!compareOn)}
+          data-testid="flows-compare-toggle"
+        >
+          {compareOn ? "退出对比" : "对比模式"}
+        </button>
         {viewSummary && (
           <button
             onClick={() =>
@@ -433,6 +461,117 @@ export function FlowsPage() {
             <div className="stat-label">环路资金（跨省边 {viewSummary.cycles.cross_region_cycle_edges}）</div>
           </div>
         </div>
+      )}
+
+      {compareOn && (
+        <section className="panel" data-testid="flows-compare">
+          <div className="controls">
+            <label>
+              自
+              <input type="date" value={cmpFrom} onChange={(e) => setCmpFrom(e.target.value)} />
+            </label>
+            <label>
+              至
+              <input type="date" value={cmpTo} onChange={(e) => setCmpTo(e.target.value)} />
+            </label>
+            <button onClick={() => void loadCompare()}>重新对比</button>
+          </div>
+          {!compare ? (
+            <div className="muted">加载中…</div>
+          ) : (
+            <>
+              <h4>
+                区域格局对比：{compare.from} → {compare.to}
+              </h4>
+              <table className="table compact compare-table" data-testid="flows-compare-metrics">
+                <thead>
+                  <tr>
+                    <th>指标</th>
+                    <th>before</th>
+                    <th>after</th>
+                    <th>差值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {flowsMetricRows(compare).map((r) => (
+                    <tr key={r.label}>
+                      <td>{r.label}</td>
+                      <td>{r.before}</td>
+                      <td>{r.after}</td>
+                      <td className={`delta-${r.deltaSign}`}>{r.delta}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flows-layout two">
+                <div>
+                  <h5>新增流向对（{compare.flows_added.length}）</h5>
+                  {compare.flows_added.length === 0 ? (
+                    <div className="state-empty">无</div>
+                  ) : (
+                    <ul>
+                      {compare.flows_added.slice(0, 10).map((f) => (
+                        <li key={`a-${f.from_region}-${f.to_region}`}>
+                          {regionName(f.from_region)} → {regionName(f.to_region)}（{f.edge_count} 笔）
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <h5>消失流向对（{compare.flows_removed.length}）</h5>
+                  {compare.flows_removed.length === 0 ? (
+                    <div className="state-empty">无</div>
+                  ) : (
+                    <ul>
+                      {compare.flows_removed.slice(0, 10).map((f) => (
+                        <li key={`r-${f.from_region}-${f.to_region}`}>
+                          {regionName(f.from_region)} → {regionName(f.to_region)}（{f.edge_count} 笔）
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h5>变化流向对（{compare.flows_changed.length}）</h5>
+                  {compare.flows_changed.length === 0 ? (
+                    <div className="state-empty">无</div>
+                  ) : (
+                    <ul>
+                      {compare.flows_changed.slice(0, 10).map((f) => (
+                        <li key={`c-${f.from_region}-${f.to_region}`}>
+                          {regionName(f.from_region)} → {regionName(f.to_region)}：{f.edge_count_before}{" "}
+                          → {f.edge_count_after} 笔
+                          {f.amount_delta_wan != null &&
+                            ` · ${f.amount_delta_wan > 0 ? "+" : ""}${f.amount_delta_wan.toLocaleString("zh-CN")} 万元`}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <p className="muted">
+                HHI 差值仅两侧齐备时给出（缺失显式为 —）；结果为算法候选，仅供研究参考。
+              </p>
+              <button
+                className="report-btn"
+                onClick={() =>
+                  downloadReport(
+                    `report_flows_compare_${compare.from}_${compare.to}.html`,
+                    assembleReportHtml(
+                      {
+                        kind: "flows_compare",
+                        title: `区域流动格局对比报告（${compare.from} → ${compare.to}）`,
+                        data: compare,
+                      },
+                      { generatedAt: new Date().toISOString(), at: compare.to },
+                    ),
+                  )
+                }
+              >
+                导出对比报告
+              </button>
+            </>
+          )}
+        </section>
       )}
 
       <section className="panel">

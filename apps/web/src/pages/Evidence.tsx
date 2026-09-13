@@ -1,0 +1,252 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  api,
+  type EvidenceCoverageOut,
+  type EvidenceDocumentsOut,
+  type EvidenceFragment,
+  type EvidenceLookupOut,
+} from "../api";
+import { EvidenceTable } from "../components/EvidenceTable";
+import { coverageHeadline } from "../evidenceDisplay";
+
+/** 证据工作台（v0.5 切片 C）：覆盖率卡片、按来源文档浏览、按声明反查证据。 */
+export function EvidencePage() {
+  const [params, setParams] = useSearchParams();
+  const deepLink = params.get("statements") ?? "";
+  const [coverage, setCoverage] = useState<EvidenceCoverageOut | null>(null);
+  const [documents, setDocuments] = useState<EvidenceDocumentsOut | null>(null);
+  const [lookup, setLookup] = useState<EvidenceLookupOut | null>(null);
+  const [query, setQuery] = useState(deepLink);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .evidenceCoverage()
+      .then(setCoverage)
+      .catch((err: Error) => setError(err.message));
+    api
+      .evidenceDocuments()
+      .then(setDocuments)
+      .catch(() => setDocuments(null));
+  }, []);
+
+  // deep-link：?statements=id1,id2 → 自动反查
+  useEffect(() => {
+    if (!deepLink) return;
+    setQuery(deepLink);
+    const ids = deepLink.split(",").map((s) => s.trim()).filter(Boolean);
+    api
+      .evidenceLookup(ids)
+      .then(setLookup)
+      .catch((err: Error) => setError(err.message));
+  }, [deepLink]);
+
+  async function runLookup() {
+    const ids = query.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) return;
+    setError(null);
+    try {
+      const out = await api.evidenceLookup(ids);
+      setLookup(out);
+      setParams(ids.length ? { statements: ids.join(",") } : {});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "反查失败");
+    }
+  }
+
+  const lookupRows = useMemo(() => {
+    if (!lookup) return [];
+    return Object.entries(lookup.evidence).map(([sid, fragments]) => ({
+      sid,
+      fragments: fragments as EvidenceFragment[],
+    }));
+  }, [lookup]);
+
+  return (
+    <div className="evidence-page">
+      <h2>证据工作台</h2>
+      <p className="muted">
+        覆盖率只呈现数据现状，不修复、不推断；每条结论可通过声明 ID 反查
+        document → snapshot(sha256) → fragment 证据链。
+      </p>
+      {error && <div className="state-error">{error}</div>}
+
+      {coverage && (
+        <>
+          {(() => {
+            const head = coverageHeadline(coverage);
+            return (
+              head.weakest && (
+                <div className="state-info" data-testid="coverage-weakest">
+                  最薄弱环节：谓词「{head.weakest.label}」覆盖率 {head.weakest.group.coverage_percent}%（缺失{" "}
+                  {head.weakest.group.missing} 条）
+                </div>
+              )
+            );
+          })()}
+          <div className="stat-cards">
+            <div className="stat-card" data-testid="coverage-total">
+              <div className="stat-value">
+                {coverage.coverage_percent != null ? `${coverage.coverage_percent}%` : "—"}
+              </div>
+              <div className="stat-label">声明证据覆盖率</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{coverage.total_active_statements}</div>
+              <div className="stat-label">有效声明（当前时点）</div>
+            </div>
+            <div className="stat-card" title="缺失证据的声明：只呈现，不修复">
+              <div className="stat-value">{coverage.missing_statements}</div>
+              <div className="stat-label">缺证据声明</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{documents?.fragment_total ?? "…"}</div>
+              <div className="stat-label">证据片段</div>
+            </div>
+          </div>
+
+          <div className="evidence-grid">
+            <section className="panel">
+              <h4>按谓词分组</h4>
+              <CoverageTable groups={coverage.by_predicate} />
+            </section>
+            <section className="panel">
+              <h4>按连接器分组</h4>
+              <CoverageTable groups={coverage.by_connector} />
+            </section>
+            <section className="panel">
+              <h4>按年度分组</h4>
+              <CoverageTable groups={coverage.by_year} />
+            </section>
+          </div>
+
+          {coverage.missing_samples.length > 0 && (
+            <section className="panel">
+              <h4>
+                缺失证据的声明（样本 {coverage.missing_sample_size}/{coverage.missing_statements}）
+              </h4>
+              <ul>
+                {coverage.missing_samples.map((m) => (
+                  <li key={m.statement_id}>
+                    <code>{m.statement_id.slice(0, 8)}…</code> · {m.predicate} ·{" "}
+                    <Link to={`/entities/${m.subject_id}`}>主体</Link> →{" "}
+                    <Link to={`/entities/${m.object_id}`}>对象</Link>{" "}
+                    <button className="linklike" onClick={() => setQuery(m.statement_id)}>
+                      反查
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+
+      <section className="panel">
+        <h4>按声明反查证据（deep-link：?statements=id1,id2）</h4>
+        <div className="controls">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="输入声明 ID（多个用英文逗号分隔）"
+            style={{ minWidth: "24em" }}
+            data-testid="evidence-query"
+          />
+          <button onClick={() => void runLookup()} disabled={!query.trim()}>
+            反查证据
+          </button>
+        </div>
+        {lookup && (
+          <div data-testid="evidence-lookup-result">
+            <p className="muted">
+              命中 {lookup.found}/{lookup.requested}
+              {lookup.missing_statement_ids.length > 0 &&
+                ` · 未登记证据：${lookup.missing_statement_ids.length} 条`}
+            </p>
+            {lookupRows.map(({ sid, fragments }) => (
+              <details key={sid} open={lookupRows.length <= 3} className="assumptions">
+                <summary>声明 {sid.slice(0, 12)}…（{fragments.length} 条片段）</summary>
+                <EvidenceTable fragments={fragments} />
+              </details>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {documents && (
+        <section className="panel">
+          <h4>
+            按来源文档浏览（{documents.count} 份文档 · {documents.fragment_total} 条片段）
+          </h4>
+          {documents.documents.map((doc) => (
+            <details key={doc.document_id} className="assumptions">
+              <summary>
+                {doc.title || doc.document_id}（{doc.connector_id} ·{" "}
+                {doc.snapshots.length} 个快照）
+              </summary>
+              {doc.snapshots.map((snap) => (
+                <details key={snap.snapshot_id} className="assumptions" style={{ margin: "4px 0 4px 16px" }}>
+                  <summary>
+                    快照 {snap.content_sha256.slice(0, 12)}…（{snap.fragment_count} 片段 ·{" "}
+                    {snap.fetched_at.slice(0, 10)}）
+                  </summary>
+                  <ul>
+                    {snap.fragments.map((frag) => (
+                      <li key={frag.fragment_id}>
+                        <code>{frag.field_path}</code>：{frag.raw_value}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </details>
+          ))}
+        </section>
+      )}
+
+      {coverage && (
+        <details className="assumptions">
+          <summary>口径说明（{coverage.algorithm_version}）</summary>
+          <ul>
+            {coverage.assumptions.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function CoverageTable({
+  groups,
+}: {
+  groups: { key: string | number; total: number; covered: number; missing: number; coverage_percent: number | null }[];
+}) {
+  if (groups.length === 0) return <div className="state-empty">暂无数据。</div>;
+  return (
+    <table className="table compact">
+      <thead>
+        <tr>
+          <th>分组</th>
+          <th>声明数</th>
+          <th>有证据</th>
+          <th>缺失</th>
+          <th>覆盖率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {groups.map((g) => (
+          <tr key={String(g.key)}>
+            <td>{String(g.key)}</td>
+            <td>{g.total}</td>
+            <td>{g.covered}</td>
+            <td>{g.missing}</td>
+            <td>{g.coverage_percent != null ? `${g.coverage_percent}%` : "—"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}

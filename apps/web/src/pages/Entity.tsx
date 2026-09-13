@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type EntityDetail, type EvidenceFragment, type RiskChainsOut } from "../api";
+import { api, type EntityDetail, type EventsOut, type EvidenceFragment, type RiskChainsOut } from "../api";
 import { kindLabel } from "./Search";
 import { formatChain, formatNominal, formatPropagationLevel } from "../riskDisplay";
+import { eventTone, formatEventSummary } from "../eventsDisplay";
+import { EvidenceTable } from "../components/EvidenceTable";
 
 const PREDICATE_LABEL: Record<string, string> = {
   holds_shares: "持股",
@@ -29,12 +31,14 @@ export function EntityPage() {
     null,
   );
   const [risk, setRisk] = useState<RiskChainsOut | null>(null);
+  const [events, setEvents] = useState<EventsOut | null>(null);
 
   useEffect(() => {
     setDetail(null);
     setError(null);
     setEvidence(null);
     setRisk(null);
+    setEvents(null);
     api
       .entity(id)
       .then(setDetail)
@@ -44,6 +48,11 @@ export function EntityPage() {
       .riskChains(id)
       .then(setRisk)
       .catch(() => setRisk(null));
+    // 变更轨迹区（v0.5 切片 A）：默认窗口 2022-01-01 → 2023-01-01
+    api
+      .entityEvents(id, "2022-01-01", "2023-01-01")
+      .then(setEvents)
+      .catch(() => setEvents(null));
   }, [id]);
 
   async function showEvidence(statementId: string) {
@@ -114,6 +123,28 @@ export function EntityPage() {
         <h3>对外投资（当前）</h3>
         <StatementTable rows={detail.outgoing} onEvidence={showEvidence} selfId={detail.id} />
       </section>
+
+      {events && events.total > 0 && (
+        <section>
+          <h3>变更轨迹（{events.from} ~ {events.to} · 声明层面）</h3>
+          <ol className="timeline" data-testid="entity-events">
+            {events.events.slice(0, 20).map((ev, i) => (
+              <li key={i} className={`timeline-item tone-${eventTone(ev.event_type)}`}>
+                <span className="tag">{ev.event_type_label}</span>
+                <span className="timeline-body">{formatEventSummary(ev)}</span>
+                <span className="timeline-actions">
+                  <button className="linklike" onClick={() => showEvidence(ev.evidence_keys[0])}>
+                    证据
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="muted">
+            口径：{events.algorithm_version} · <Link to="/events">查看全局异动</Link>
+          </p>
+        </section>
+      )}
 
       {risk && (risk.chains.length > 0 || risk.cycles.length > 0 || risk.pledges.length > 0) && (
         <section>
@@ -210,44 +241,7 @@ export function EntityPage() {
       {evidence && (
         <section>
           <h3>证据片段（声明 {evidence.sid.slice(0, 8)}…）</h3>
-          {evidence.fragments.length === 0 ? (
-            <div className="state-empty">该声明没有登记证据片段。</div>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>来源文档</th>
-                  <th>字段路径</th>
-                  <th>原始值</th>
-                  <th>内容哈希</th>
-                  <th>链接</th>
-                </tr>
-              </thead>
-              <tbody>
-                {evidence.fragments.map((f) => (
-                  <tr key={f.fragment_id}>
-                    <td>{f.document_title}</td>
-                    <td>
-                      <code>{f.field_path}</code>
-                    </td>
-                    <td>{f.raw_value}</td>
-                    <td>
-                      <code title={f.content_sha256}>{f.content_sha256.slice(0, 12)}…</code>
-                    </td>
-                    <td>
-                      {f.source_url ? (
-                        <a href={f.source_url} target="_blank" rel="noreferrer">
-                          来源
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <EvidenceTable fragments={evidence.fragments} />
         </section>
       )}
 

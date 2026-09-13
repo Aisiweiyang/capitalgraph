@@ -159,3 +159,33 @@ a { color: var(--accent); }
   box-shadow: 0 4px 16px rgba(28,36,48,.12); max-height: 280px; overflow-y: auto;
 }
 .search-suggest li { display: flex; gap: 8px; align-items: center; padding: 4px 6px; }
+
+/* ---- v0.5 异动页 / 证据工作台 / 对比模式 ---- */
+.timeline { list-style: none; padding: 0; margin: 8px 0; }
+.timeline-item {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--muted);
+  border-radius: 8px; padding: 8px 12px; margin: 6px 0; font-size: 13px;
+}
+.timeline-item.tone-positive { border-left-color: #27ae60; }
+.timeline-item.tone-negative { border-left-color: #c0392b; }
+.timeline-item.tone-neutral { border-left-color: var(--accent); }
+.timeline-actions { margin-left: auto; display: inline-flex; gap: 10px; }
+
+.chip { background: #eef2f8; color: var(--ink); border: 1px solid var(--line); padding: 3px 10px; font-size: 12px; }
+.chip-active { background: var(--accent); color: white; border-color: var(--accent); }
+
+.compare-table .compare-added td:nth-child(2) { color: #145a32; }
+.compare-table .compare-removed td:nth-child(2) { color: var(--danger); }
+.compare-table .compare-changed td:nth-child(2) { color: var(--warn); }
+.compare-tag-added { background: #e2f5ea; color: #145a32; }
+.compare-tag-removed { background: #fde8e8; color: var(--danger); }
+.compare-tag-changed { background: #fdf3e0; color: var(--warn); }
+.delta-positive { color: #145a32; font-weight: 600; }
+.delta-negative { color: var(--danger); font-weight: 600; }
+.delta-zero { color: var(--muted); }
+.delta-unknown { color: var(--muted); }
+
+.evidence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin: 12px 0; }
+.report-btn { margin-left: 8px; background: #475569; }
+.evidence-page .panel { margin: 10px 0; }

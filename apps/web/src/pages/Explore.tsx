@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type PenetrationResult, type SearchOut } from "../api";
 import { GraphCanvas, type GraphHandles } from "../components/GraphCanvas";
 import { assembleReportHtml, downloadReport } from "../report";
+import { collectReportEvidence } from "../reportEvidence";
 import { kindLabel } from "./Search";
 
 const LARGE_GRAPH_PATHS = 2000; // 超大图降级阈值
@@ -157,7 +158,11 @@ export function ExplorePage() {
             <button onClick={() => graphHandles.current?.exportPng()}>导出 PNG</button>
             <button onClick={() => void exportCsv(data, at)}>导出 CSV</button>
             <button
-              onClick={() =>
+              onClick={async () => {
+                const evidence = await collectReportEvidence([
+                  ...data.ubo_candidates.flatMap((u) => u.statement_ids),
+                  ...data.aggregates.flatMap((a) => a.statement_ids),
+                ]);
                 downloadReport(
                   `report_penetration_${data.root.slice(0, 8)}.html`,
                   assembleReportHtml(
@@ -167,10 +172,11 @@ export function ExplorePage() {
                       chartPng: graphHandles.current?.getPngDataUrl() ?? null,
                       at: data.at,
                       minRatioPercent: String(data.config.min_ratio_percent),
+                      evidence,
                     },
                   ),
-                )
-              }
+                );
+              }}
             >
               导出报告
             </button>
@@ -238,6 +244,14 @@ export function ExplorePage() {
                       <b>{u.effective_percent}%</b>
                       {u.voting_percent != null && <span className="muted"> 表决 {u.voting_percent}%</span>}
                       <span className="muted">（{u.basis.length} 项依据）</span>
+                      {u.statement_ids.length > 0 && (
+                        <Link
+                          to={`/evidence?statements=${u.statement_ids.join(",")}`}
+                          title="打开该候选依据声明的证据"
+                        >
+                          证据
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -252,6 +266,7 @@ export function ExplorePage() {
                     <th>主体</th>
                     <th>有效权益</th>
                     <th>路径</th>
+                    <th>证据</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -265,6 +280,11 @@ export function ExplorePage() {
                       </td>
                       <td>{a.effective_percent != null ? `${a.effective_percent}%` : "未知"}</td>
                       <td>{a.path_count}</td>
+                      <td>
+                        {a.statement_ids.length > 0 && (
+                          <Link to={`/evidence?statements=${a.statement_ids.join(",")}`}>证据</Link>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

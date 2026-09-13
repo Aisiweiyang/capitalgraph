@@ -4,6 +4,8 @@ import { LoginPage } from "./pages/Login";
 import { DashboardPage } from "./pages/Dashboard";
 import { FlowsPage } from "./pages/Flows";
 import { FamiliesPage } from "./pages/Families";
+import { EventsPage } from "./pages/Events";
+import { EvidencePage } from "./pages/Evidence";
 import { SearchPage } from "./pages/Search";
 import { EntityPage } from "./pages/Entity";
 import { ExplorePage } from "./pages/Explore";
@@ -20,6 +22,8 @@ function Header() {
         <NavLink to="/dashboard">总览</NavLink>
         <NavLink to="/flows">资本流动</NavLink>
         <NavLink to="/families">资本系谱</NavLink>
+        <NavLink to="/events">异动</NavLink>
+        <NavLink to="/evidence">证据</NavLink>
         <NavLink to="/">检索</NavLink>
         <NavLink to="/explore">穿透图</NavLink>
         {auth.hasRole("analyst") && <NavLink to="/review">复核</NavLink>}
@@ -59,6 +63,8 @@ export function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/flows" element={<FlowsPage />} />
               <Route path="/families" element={<FamiliesPage />} />
+              <Route path="/events" element={<EventsPage />} />
+              <Route path="/evidence" element={<EvidencePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/entities/:id" element={<EntityPage />} />
               <Route path="/explore" element={<ExplorePage />} />

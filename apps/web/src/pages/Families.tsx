@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   api,
   type FamilyDetail,
+  type FamiliesCompareOut,
   type FamiliesFlowsOut,
   type FamiliesListOut,
   type FamilySummary,
@@ -10,10 +11,12 @@ import {
 import { kindLabel } from "./Search";
 import { FamilyGraph } from "../components/FamilyGraph";
 import { assembleReportHtml, downloadReport } from "../report";
+import { collectReportEvidence } from "../reportEvidence";
+import { familyCompareRows } from "../compareDisplay";
 
 type SortMode = "size" | "regions" | "cycles";
 
-/** 资本系谱页：系族列表 → 族详情（子图 + 成员路径 + 与外界流向表）。 */
+/** 资本系谱页：系族列表 → 族详情（子图 + 成员路径 + 与外界流向表）+ 双时点对比模式。 */
 export function FamiliesPage() {
   const [list, setList] = useState<FamiliesListOut | null>(null);
   const [sortBy, setSortBy] = useState<SortMode>("size");
@@ -23,6 +26,12 @@ export function FamiliesPage() {
   const [flows, setFlows] = useState<FamiliesFlowsOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const graphHandles = useRef<{ getPngDataUrl: () => string | null } | null>(null);
+
+  // 对比模式（v0.5 切片 B）
+  const [compareOn, setCompareOn] = useState(false);
+  const [cmpFrom, setCmpFrom] = useState("2022-01-01");
+  const [cmpTo, setCmpTo] = useState("2023-01-01");
+  const [compare, setCompare] = useState<FamiliesCompareOut | null>(null);
 
   const loadList = useCallback(async () => {
     setError(null);
@@ -43,6 +52,28 @@ export function FamiliesPage() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  const loadCompare = useCallback(async () => {
+    setError(null);
+    setDetail(null);
+    setSelected(null);
+    try {
+      setCompare(
+        await api.familiesCompare({
+          from: cmpFrom || undefined,
+          to: cmpTo || undefined,
+          min_control_ratio_percent: minRatio || undefined,
+        }),
+      );
+    } catch (err) {
+      setCompare(null);
+      setError(err instanceof Error ? err.message : "系族对比加载失败");
+    }
+  }, [cmpFrom, cmpTo, minRatio]);
+
+  useEffect(() => {
+    if (compareOn) void loadCompare();
+  }, [compareOn, loadCompare]);
 
   // 族详情 + 族间流向（点选列表行后加载）
   useEffect(() => {
@@ -111,10 +142,92 @@ export function FamiliesPage() {
               onChange={(e) => setMinRatio(e.target.value)}
             />
           </label>
-          <button onClick={() => void loadList()}>重新计算</button>
+          <button
+            className={compareOn ? "chip-active" : ""}
+            onClick={() => setCompareOn(!compareOn)}
+            data-testid="families-compare-toggle"
+          >
+            {compareOn ? "退出对比" : "对比模式"}
+          </button>
+          {!compareOn && <button onClick={() => void loadList()}>重新计算</button>}
         </div>
       </div>
 
+      {compareOn && (
+        <section className="panel" data-testid="families-compare">
+          <div className="controls">
+            <label>
+              自
+              <input type="date" value={cmpFrom} onChange={(e) => setCmpFrom(e.target.value)} />
+            </label>
+            <label>
+              至
+              <input type="date" value={cmpTo} onChange={(e) => setCmpTo(e.target.value)} />
+            </label>
+            <button onClick={() => void loadCompare()}>重新对比</button>
+          </div>
+          {!compare ? (
+            <div className="muted">加载中…</div>
+          ) : (
+            <>
+              <h4>
+                系族格局对比：{compare.from} → {compare.to}（族 {compare.family_count.before} →{" "}
+                {compare.family_count.after}，未变化 {compare.unchanged_count}）
+              </h4>
+              {(() => {
+                const rows = familyCompareRows(compare);
+                if (rows.length === 0)
+                  return <div className="state-empty">两个时点系族格局一致。</div>;
+                return (
+                  <table className="table compact compare-table">
+                    <thead>
+                      <tr>
+                        <th>变化</th>
+                        <th>内容</th>
+                        <th>明细</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, i) => (
+                        <tr key={i} className={`compare-${r.kind}`}>
+                          <td>
+                            <span className={`tag compare-tag-${r.kind}`}>
+                              {r.kind === "added" ? "出现" : r.kind === "removed" ? "消失" : "变化"}
+                            </span>
+                          </td>
+                          <td>{r.label}</td>
+                          <td>{r.detail}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+              <button
+                className="report-btn"
+                onClick={() =>
+                  downloadReport(
+                    `report_families_compare_${compare.from}_${compare.to}.html`,
+                    assembleReportHtml(
+                      {
+                        kind: "families_compare",
+                        title: `系族格局对比报告（${compare.from} → ${compare.to}）`,
+                        data: compare,
+                      },
+                      { generatedAt: new Date().toISOString(), at: compare.to },
+                    ),
+                  )
+                }
+              >
+                导出对比报告
+              </button>
+            </>
+          )}
+        </section>
+      )}
+
+      {!compareOn && (
+        <>
       {list && (
         <div className="stat-cards">
           <div className="stat-card">
@@ -186,7 +299,10 @@ export function FamiliesPage() {
             {detail && (
               <button
                 className="report-btn"
-                onClick={() =>
+                onClick={async () => {
+                  const evidence = await collectReportEvidence(
+                    detail.members.flatMap((m) => m.statement_ids),
+                  );
                   downloadReport(
                     `report_family_${detail.family_id.slice(0, 8)}.html`,
                     assembleReportHtml(
@@ -196,10 +312,11 @@ export function FamiliesPage() {
                         chartPng: graphHandles.current?.getPngDataUrl() ?? null,
                         at: detail.at,
                         minRatioPercent: String(detail.min_control_ratio_percent),
+                        evidence,
                       },
                     ),
-                  )
-                }
+                  );
+                }}
               >
                 导出报告
               </button>
@@ -219,6 +336,7 @@ export function FamiliesPage() {
                     <th>成员</th>
                     <th>类型</th>
                     <th>被控路径</th>
+                    <th>证据</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -229,6 +347,16 @@ export function FamiliesPage() {
                       </td>
                       <td>{m.kind ? kindLabel(m.kind) : "—"}</td>
                       <td className="muted">{m.path_names.join(" → ")}</td>
+                      <td>
+                        {m.statement_ids.length > 0 && (
+                          <Link
+                            to={`/evidence?statements=${m.statement_ids.join(",")}`}
+                            title="打开被控路径声明的证据"
+                          >
+                            证据
+                          </Link>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -294,6 +422,8 @@ export function FamiliesPage() {
           )}
         </section>
       </div>
+        </>
+      )}
     </div>
   );
 }
