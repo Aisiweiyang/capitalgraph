@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type PenetrationResult, type SearchOut } from "../api";
 import { GraphCanvas, type GraphHandles } from "../components/GraphCanvas";
+import { assembleReportHtml, downloadReport } from "../report";
 import { kindLabel } from "./Search";
 
 const LARGE_GRAPH_PATHS = 2000; // 超大图降级阈值
@@ -155,6 +156,24 @@ export function ExplorePage() {
           <>
             <button onClick={() => graphHandles.current?.exportPng()}>导出 PNG</button>
             <button onClick={() => void exportCsv(data, at)}>导出 CSV</button>
+            <button
+              onClick={() =>
+                downloadReport(
+                  `report_penetration_${data.root.slice(0, 8)}.html`,
+                  assembleReportHtml(
+                    { kind: "penetration", title: `穿透研究报告：${data.entity_name}`, data },
+                    {
+                      generatedAt: new Date().toISOString(),
+                      chartPng: graphHandles.current?.getPngDataUrl() ?? null,
+                      at: data.at,
+                      minRatioPercent: String(data.config.min_ratio_percent),
+                    },
+                  ),
+                )
+              }
+            >
+              导出报告
+            </button>
           </>
         )}
       </div>

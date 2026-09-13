@@ -59,15 +59,22 @@ export type { EChartsCoreOption };
 
 echarts.registerMap(CHINA_MAP_NAME, chinaGeo as never);
 
+export interface EChartHandles {
+  /** 报告导出用：当前图表 PNG dataURL。 */
+  getDataURL: () => string | null;
+}
+
 /** 轻包装：挂载 init、卸载 dispose、数据变化 setOption(notMerge)、窗口 resize。 */
 export function EChart({
   option,
   onEvents,
   className,
+  handlesRef,
 }: {
   option: EChartsCoreOption;
   onEvents?: Record<string, (params: unknown) => void>;
   className?: string;
+  handlesRef?: { current: EChartHandles | null };
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -80,14 +87,21 @@ export function EChart({
     const w = window as unknown as { __echarts_instances?: echarts.ECharts[] };
     w.__echarts_instances = w.__echarts_instances ?? [];
     w.__echarts_instances.push(chart);
+    if (handlesRef)
+      handlesRef.current = {
+        getDataURL: () =>
+          chart.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff" }) || null,
+      };
     const onResize = () => chart.resize();
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
       chart.dispose();
       chartRef.current = null;
+      if (handlesRef) handlesRef.current = null;
       w.__echarts_instances = w.__echarts_instances?.filter((c) => c !== chart);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

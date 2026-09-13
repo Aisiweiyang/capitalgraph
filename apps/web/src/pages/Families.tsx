@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   api,
@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { kindLabel } from "./Search";
 import { FamilyGraph } from "../components/FamilyGraph";
+import { assembleReportHtml, downloadReport } from "../report";
 
 type SortMode = "size" | "regions" | "cycles";
 
@@ -21,6 +22,7 @@ export function FamiliesPage() {
   const [detail, setDetail] = useState<FamilyDetail | null>(null);
   const [flows, setFlows] = useState<FamiliesFlowsOut | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const graphHandles = useRef<{ getPngDataUrl: () => string | null } | null>(null);
 
   const loadList = useCallback(async () => {
     setError(null);
@@ -179,14 +181,37 @@ export function FamiliesPage() {
         </section>
 
         <section className="panel">
-          <h4>{selected ? `族详情：${selected.controller_names.join("、")}` : "族详情"}</h4>
+          <h4>
+            {selected ? `族详情：${selected.controller_names.join("、")}` : "族详情"}
+            {detail && (
+              <button
+                className="report-btn"
+                onClick={() =>
+                  downloadReport(
+                    `report_family_${detail.family_id.slice(0, 8)}.html`,
+                    assembleReportHtml(
+                      { kind: "family", title: `系族研究报告：${detail.controller_names.join("、")}`, data: detail },
+                      {
+                        generatedAt: new Date().toISOString(),
+                        chartPng: graphHandles.current?.getPngDataUrl() ?? null,
+                        at: detail.at,
+                        minRatioPercent: String(detail.min_control_ratio_percent),
+                      },
+                    ),
+                  )
+                }
+              >
+                导出报告
+              </button>
+            )}
+          </h4>
           {!selected ? (
             <div className="state-empty">在左侧列表点击一个系族，查看成员子图与被控路径。</div>
           ) : !detail ? (
             <div className="muted">加载中…</div>
           ) : (
             <div className="family-detail">
-              <FamilyGraph data={detail} />
+              <FamilyGraph data={detail} handlesRef={graphHandles} />
               <h5>成员与被控路径（{detail.members.length}）</h5>
               <table className="table compact">
                 <thead>

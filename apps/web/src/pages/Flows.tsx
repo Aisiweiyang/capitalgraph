@@ -12,9 +12,11 @@ import {
   EChart,
   REGION_CENTROIDS,
   REGION_NAME_BY_CODE,
+  type EChartHandles,
   type EChartsCoreOption,
 } from "../components/EChart";
 import { replayYears, runReplay, yearEndIso, type ReplayFrame } from "../replay";
+import { assembleReportHtml, downloadReport } from "../report";
 
 type WeightMode = "amount" | "count";
 
@@ -150,6 +152,8 @@ export function FlowsPage() {
 
   // 卸载时取消进行中的预取
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  const mapHandles = useRef<EChartHandles | null>(null);
 
   // 回放帧启用时，地图/排名/卡片以该帧数据呈现（请求预算 = 年数 × 2）
   const viewSummary = replayOn && frame ? frame.summary : summary;
@@ -377,6 +381,33 @@ export function FlowsPage() {
             <option value="count">笔数</option>
           </select>
         </label>
+        {viewSummary && (
+          <button
+            onClick={() =>
+              downloadReport(
+                `report_flows_${replayOn && frame ? frame.year : "current"}.html`,
+                assembleReportHtml(
+                  {
+                    kind: "flows",
+                    title:
+                      replayOn && frame
+                        ? `资本流动研究报告（${frame.year} 年回放帧）`
+                        : "资本流动研究报告",
+                    data: viewSummary,
+                    flows: viewFlows,
+                  },
+                  {
+                    generatedAt: new Date().toISOString(),
+                    chartPng: mapHandles.current?.getDataURL() ?? null,
+                    at: replayOn && frame ? yearEndIso(frame.year) : null,
+                  },
+                ),
+              )
+            }
+          >
+            导出报告
+          </button>
+        )}
       </div>
 
       {viewSummary && (
@@ -448,7 +479,7 @@ export function FlowsPage() {
       <div className="flows-layout">
         <section className="panel">
           <h4>净流入 / 净流出地图</h4>
-          <EChart className="flow-map" option={mapOption} onEvents={mapEvents} />
+          <EChart className="flow-map" option={mapOption} onEvents={mapEvents} handlesRef={mapHandles} />
           <p className="muted">
             地图数据：DataV.GeoAtlas（内置，仅研究演示用途）；着色仅表达数据分布。
           </p>

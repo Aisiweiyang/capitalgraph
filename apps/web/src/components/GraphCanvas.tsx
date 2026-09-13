@@ -18,6 +18,8 @@ const KIND_COLOR: Record<string, string> = {
 export interface GraphHandles {
   exportPng: () => void;
   focusPaths: (statementIds: Set<string>) => void;
+  /** 报告导出用：当前图 PNG dataURL。 */
+  getPngDataUrl: () => string | null;
 }
 
 export function GraphCanvas({
@@ -196,6 +198,7 @@ export function GraphCanvas({
         a.click();
         URL.revokeObjectURL(url);
       },
+      getPngDataUrl: () => (cy.png({ full: true }) as string) || null,
       focusPaths: (statementIds: Set<string>) => {
         cy.edges().removeClass("highlighted");
         for (const sid of statementIds) {
