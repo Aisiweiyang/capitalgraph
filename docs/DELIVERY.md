@@ -120,3 +120,39 @@ cd apps/web && npm install && npm run dev
 3. 回放为前端逐帧预取（年数×2 请求），年份数很大时建议后端批量接口（现规模 ≤ 十年×2 无压力）。
 4. 报告导出为纯前端快照，不含证据原文（后续可加证据表 deep-link）。
 5. E2E 未覆盖新页面（families/risk/replay 为集成+单测覆盖）；可按需补 Playwright 用例。
+
+## v0.5 交付（2026-09-14）：资本异动与证据工作台
+
+交付日期：2026-09-14 ｜ v0.5 在 v0.4 之上把"已经算出来的结论"与"支撑它的证据、它的历史变化"
+连起来：什么时候变的（变更事件流）、两个时点之间格局怎么变的（对比）、每条结论背后是哪份证据
+（证据工作台与 deep-link），并补齐 v0.4 新页面的端到端质量。
+
+### 功能与文件位置
+
+| 切片 | 内容 | 位置 |
+| --- | --- | --- |
+| A 变更事件流 | diff_events 纯函数（新增/失效/比例增减/控制权/担保/质押事件，证据引用键）、/events、/entities/{id}/events、全局异动页、实体页变更轨迹区 | `cg_capital_graph/events.py`、`cg_api/routers/events.py`、`apps/web/src/pages/Events.tsx`、`eventsDisplay.ts` |
+| B 格局对比 | diff_families/compare_flows 纯函数、/families/compare、/flows/compare、系谱/流动页对比模式、对比报告 | `cg_capital_graph/compare.py`、`routers/families.py`+`flows.py`、`compareDisplay.ts`、`report.ts` |
+| C 证据工作台 | evidence_coverage 纯函数、/evidence/coverage·documents·lookup、证据工作台页、全站 deep-link、报告证据引用表与行内上标 | `cg_capital_graph/evidence.py`、`routers/evidence.py`、`pages/Evidence.tsx`、`components/EvidenceTable.tsx`、`reportEvidence.ts` |
+| D 质量收尾 | 8 项新 Playwright（系谱详情/风险区/回放/报告下载/异动/证据/双对比模式）、性能基线、synthetic 分批缺陷修复 | `e2e/v05-pages.spec.ts`、`tests/performance/test_v05_perf.py`、ADR-018 |
+
+### 实际测试证据（本机实测，详见 TEST_REPORT.md §v0.5）
+
+- 后端 `pytest --cov`：**179 passed / 92.3%**（v0.4 基线 129/91.3%，零回归）
+- 前端 `vitest`：**42 passed**（v0.4 基线 24，零回归）；`tsc -b && npm run build` 通过
+- E2E `playwright test`：**16 passed**（基线 8 项 + 新增 8 项，零回归）
+- ruff / module_graph / secret_scan / bandit：全部通过
+- 性能基线：2008 声明规模下 /events p50 32.5ms、/families/compare p50 58.2ms、/flows/compare p50 74.3ms
+
+### 顺带修复（确定性不变）
+
+1. **synthetic 分批缺陷**：实体 > 400 时跨批声明主体键解析失败、证据静默丢失；改为
+   "先全部实体批次、后全部声明批次"，并把证据缺文档从静默降级改为显式 issue（ADR-018）。
+   种子载荷与顺序不变，seed=42 既有断言零回归。
+2. **系族对比口径增强**：diff_families 增加成员级"被控路径归属变化"检测（控制权族内移动
+   必报 changed），使 2022-06-01 持股转移在同族场景下也能被对比视图呈现。
+
+### 已知限制
+
+见 TEST_REPORT.md §v0.5 已知限制（事件不含 recorded_at 中间粒度、同键多声明归因退化、
+超大规模需数据库侧 diff、覆盖率不评估证据内容质量、报告证据表上限 200 条）。

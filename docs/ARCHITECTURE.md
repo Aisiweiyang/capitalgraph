@@ -138,3 +138,27 @@ graph LR
 
 查询 `at=T` 时：取 `valid_from <= T < valid_to` 且当时 `status=active` 的声明。
 当前状态不覆盖历史；`recorded_at` 与 `valid_from` 分离，可回答"某一日期公开记录显示什么"。
+
+## v0.5 资本异动与证据工作台
+
+在单点穿透/系族/风险之上补齐"时间维度的变化"与"结论背后的证据"两条主线（ADR-017/018）：
+
+- **变更事件流（cg-events 纯函数）**：/events 与 /entities/{id}/events 把 from/to 两个时点的
+  有效声明快照做集合对比，产出持股新增/失效/比例增减、控制权获得/丧失、担保/质押新增/解除
+  等事件；事件只陈述声明层面变化，附 statement_ids 证据引用键，全排序确定性；
+- **格局对比（cg-compare 纯函数）**：/families/compare 与 /flows/compare 对两个时点各自完整
+  重算的系族/区域格局做集合差异（族增减/成员增减/被控路径归属变化/HHI 与金额差值/流向对
+  增减），缺损失配对差值显式 None；
+- **证据工作台（cg-evidence-coverage 纯函数 + /evidence/* API）**：声明证据覆盖率按谓词/
+  连接器/年度分组统计，缺失证据的声明显式列出（只呈现不修复）；/evidence/documents 提供
+  document→snapshot→fragment 导航；/evidence/lookup 以 statement_id 批量反查证据链；
+- **全站 deep-link**：穿透路径边、系族成员路径、风险标记 payload、异动事件的 statement_ids
+  一键打开证据工作台（/evidence?statements=…，共享 EvidenceTable 组件）；
+- **报告证据引用表**：导出 HTML 附证据引用表（编号 = 首次出现顺序），结论行内标注证据
+  编号上标；报告支持 families_compare / flows_compare 对比上下文；
+- **前端新页**：全局异动页（/events，时间线 + 类型筛选）与证据工作台页（/evidence，
+  覆盖率卡片 + 文档浏览 + 声明反查）；系谱页/流动页新增双时点对比模式。
+
+请求链路示例（异动查询）：`web` → `GET /api/v1/events?from=&to=` → 鉴权/RBAC →
+仓储按两时点加载有效声明（EventRow）→ `cg_capital_graph.diff_events` 纯函数对比 →
+join 实体名 → 分页返回（附 counts_by_type 与口径说明）。

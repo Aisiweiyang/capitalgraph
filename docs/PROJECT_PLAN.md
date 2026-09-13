@@ -1,6 +1,6 @@
 # CapitalGraph CN 项目计划
 
-状态：**阶段 0–7 全部完成（v0.1–v0.3.1 交付）；v0.4 资本系谱与风险传导完成（2026-09-13）** ｜ 最近更新：2026-09-13 ｜ 证据见 TEST_REPORT.md / DELIVERY.md
+状态：**阶段 0–7 全部完成（v0.1–v0.3.1 交付）；v0.4 资本系谱与风险传导完成（2026-09-13）；v0.5 资本异动与证据工作台完成（2026-09-14）** ｜ 最近更新：2026-09-14 ｜ 证据见 TEST_REPORT.md / DELIVERY.md
 
 ## 目标
 
@@ -75,3 +75,28 @@ CapitalGraph CN 改在独立子目录 `资本图谱/` 内实施（见 ADR-010）
 - [x] 既有测试不回归：后端 83→129 项全绿；前端 8→24 项全绿；E2E 8 项全绿
 - [x] 模块边界检查通过；合成场景确定性（固定 seed）；风险结果全部标注"算法候选"
 - [x] 文档同步：ADR-015/016、ARCHITECTURE、DATA_MODEL、OSS_EVALUATION、USER_GUIDE、TEST_REPORT、DELIVERY、README
+
+## v0.5 计划与验收清单（资本异动与证据工作台）
+
+目标：把"已经算出来的结论"与"支撑它的证据、它的历史变化"连起来——什么时候变的（变更事件流）、
+两个时点之间格局怎么变的（对比）、每条结论背后是哪份证据（证据工作台与 deep-link），
+并补齐 v0.4 新页面的端到端质量。
+
+| 切片 | 内容 | 状态 |
+| --- | --- | --- |
+| A 变更事件流 | events 纯函数（时态 diff 派生）+ /events 与 /entities/{id}/events + 全局异动页 + 实体页变更轨迹 | 完成 |
+| B 格局对比 | families/flows diff 纯函数 + compare API + 系谱/流动页对比模式 + 对比报告 | 完成 |
+| C 证据工作台 | 覆盖率统计 + /evidence/* API + 证据工作台页 + 全站 deep-link + 报告证据引用表 | 完成 |
+| D 端到端质量收尾 | Playwright 补 v0.4/v0.5 页面 + 既有 8 项不回归 + 性能基线 | 完成 |
+
+验收清单（全部有实测证据，见 TEST_REPORT.md §v0.5）：
+
+- [x] events/diff 纯函数单测：事件类型正确性、比例增减前后值、缺失比例显式、两时点相同输入零事件、确定性
+- [x] /events、/families/compare、/evidence/* API 集成测试：RBAC 401、参数校验 from<=to（422）、合成数据已知变更断言（2022-06-01 持股转移必产生持股失效+新增事件）
+- [x] 前端 vitest：异动页筛选逻辑、对比视图差异计算、证据覆盖率统计、报告证据表组装
+- [x] 既有测试不回归：后端 129→179 项全绿；前端 24→42 项全绿；E2E 8→16 项全绿
+- [x] 模块边界检查通过；开源调研记录（deepdiff/时间线/事件溯源，OSS_EVALUATION v0.5 增量）；
+      事件/对比/覆盖率结果全部标注"算法候选/研究用途"
+- [x] 文档同步：ADR-017/018、ARCHITECTURE、DATA_MODEL、OSS_EVALUATION、USER_GUIDE、
+      TEST_REPORT（实测命令与结果 + 2008 声明性能基线）、DELIVERY、README
+- [x] 顺带修复 synthetic 分批缺陷（大规格跨批键解析/证据静默丢失），seed=42 断言零回归（ADR-018）

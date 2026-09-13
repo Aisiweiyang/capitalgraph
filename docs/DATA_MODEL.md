@@ -125,3 +125,20 @@ graph TB
 - `pledge` → pledges_shares（subject=出质人，object=出质股权标的公司；可选 ratio + amount_wan）。
 
 金额缺失合法入库（amount_scaled=NULL，绝不补值）；坏行仍按行拒绝并留痕。
+
+## v0.5 派生视图口径（无新增表）
+
+变更事件流、格局对比与证据覆盖率均为**派生只读视图**，直接由既有表计算（`relationship_statements`
++ `statement_evidence` + 实体维度），不新增物理表、不落库派生行：
+
+- 事件输入行 = status=active 且 `valid_from <= at < valid_to` 的声明（全部谓词，含比例）；
+  两个时点各加载一次后在应用层做集合对比（ADR-017：键 = subject+predicate+object）；
+- 覆盖率输入行 = 同上时点过滤 + 连接器 + 年度 + `EXISTS(statement_evidence)` 存在性标记
+  （ADR-018：覆盖率只呈现不修复，缺失样本显式列出）；
+- 对比输出（族增减/流向对增减/HHI 差值）同样只读，比较两侧为各自时点的完整重算结果。
+
+## v0.5 已知输入缺陷修复（synthetic 分批）
+
+合成连接器原按同一索引把实体与声明切片，实体 > 400 时跨批声明主体键解析失败且证据静默丢失；
+v0.5 起先产出全部实体批次再产出全部声明批次（同一事务内标识符回查可靠），并在"声明携带证据
+但批次未登记来源文档"时显式上报 issue。种子数据载荷与顺序不变，既有 seed=42 断言零回归。

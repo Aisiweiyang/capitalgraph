@@ -120,3 +120,56 @@ cd apps/web && npm install && npm run dev
 3. 回放为前端逐帧预取（年数×2 请求），年份数很大时建议后端批量接口（现规模 ≤ 十年×2 无压力）。
 4. 报告导出为纯前端快照，不含证据原文（后续可加证据表 deep-link）。
 5. E2E 未覆盖新页面（families/risk/replay 为集成+单测覆盖）；可按需补 Playwright 用例。
+
+## v0.5 实测记录（2026-09-14，Windows 11 本机）
+
+### 功能与文件位置
+
+| 切片 | 文件 |
+| --- | --- |
+| A 变更事件流 | `packages/capital_graph/src/cg_capital_graph/events.py`（diff_events/events_for_entity 纯函数）；`apps/api/src/cg_api/routers/events.py`（/events、/events/types）+ `routers/entities.py`（/{id}/events）；`apps/web/src/pages/Events.tsx`（异动页）、`Entity.tsx`（变更轨迹区）、`eventsDisplay.ts`（展示口径） |
+| B 格局对比 | `packages/capital_graph/src/cg_capital_graph/compare.py`（diff_families/compare_flows，未改动 families.py/flows.py 既有签名）；`routers/families.py`（/compare）+ `routers/flows.py`（/flows/compare）；`Families.tsx`/`Flows.tsx` 对比模式、`compareDisplay.ts`、`report.ts` compare 上下文 |
+| C 证据工作台 | `packages/capital_graph/src/cg_capital_graph/evidence.py`（evidence_coverage 纯函数）；`apps/api/src/cg_api/routers/evidence.py`（coverage/documents/lookup）+ `repo/statements.py`（evidence_coverage_rows/evidence_documents）；`apps/web/src/pages/Evidence.tsx`、`components/EvidenceTable.tsx`、`evidenceDisplay.ts`；deep-link：Explore/Families/Review/Events/Entity；报告证据表 `report.ts`+`reportEvidence.ts` |
+| D 质量收尾 | `apps/web/e2e/v05-pages.spec.ts`（8 项新 E2E）；`tests/performance/test_v05_perf.py`；顺带修复 `cg_connectors/synthetic.py` 分批缺陷与 `ingest.py` 证据静默丢失（见 ADR-018） |
+
+### 实际命令与结果（全部本机实测）
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov --cov-report=term -p no:warnings` | **179 passed**，退出码 0，TOTAL **92.3%**（基线 129 项/91.3% → 179 项/92.3%，零回归；新增 50 项 = 事件 23 + 对比 17 + 证据 9 + 性能基线 1） |
+| `cd apps/web && npx vitest run` | **42 passed**（10 文件），退出码 0（基线 24 项 → 42 项） |
+| `npx tsc -b && npm run build` | 类型检查通过，vite 构建成功 |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **16 passed**（17.8s；基线 8 项 + 新增 8 项，零回归） |
+| `uv run ruff check packages apps workers tests` / `ruff format --check` | 全部通过 |
+| `uv run python scripts/module_graph.py` | 模块边界校验通过 |
+| `uv run python scripts/secret_scan.py` | 未发现疑似硬编码密钥 |
+| `uvx bandit -q -r packages apps/api/src workers/src` | 退出码 0，无告警 |
+
+### 性能基线（切片 D，2000 声明规模）
+
+`uv run pytest tests/performance/test_v05_perf.py -q -s`（seed=42 确定性合成，实体 640 →
+**声明 2008**，窗口 2020-01-01→2024-01-01，各 5 次取 p50/max）：
+
+| 端点 | p50 | max |
+| --- | --- | --- |
+| `/api/v1/events`（窗口内 2 事件） | 32.5 ms | 62.2 ms |
+| `/api/v1/families/compare` | 58.2 ms | 103.6 ms |
+| `/api/v1/flows/compare` | 74.3 ms | 116.1 ms |
+
+环境：AMD64 / Python 3.12.13 / Windows。远低于穿透护栏超时（10s）；断言仅护栏级，
+超阈值只记录并在已知限制说明，不阻塞交付。
+
+### 开源借鉴（详见 OSS_EVALUATION.md v0.5 增量）
+
+- deepdiff（MIT）：**自研不引入**——键集合 diff 约百行且需业务口径（比例缺失显式不比较）；
+- 时间线组件库：**自研**（HTML/CSS 列表 + chips），零新增前端依赖；
+- 事件溯源/CQRS 框架：**不引入**（事件为派生只读视图，无写入路径需求）；
+- 零新增后端 Python 运行时依赖（ADR-002/014/015 路线保持）。
+
+### 已知限制与下一步建议
+
+1. 事件为两时点集合差异派生，不含 recorded_at 粒度的中间历史（如需逐日事件可按月切片查询）。
+2. 同键多条声明部分重叠时比例事件退化为增删事件（归因歧义，口径见 ADR-017）。
+3. /events 全量分页加载两时点快照后内存对比，千万级声明需引入数据库侧 diff 或游标分片。
+4. 覆盖率只统计"有无证据片段"，不评估证据内容质量/时效（stale_source 已有 QualityIssue 通道）。
+5. 报告证据表上限 200 条声明（lookup 单次上限），更大报告需分批导出。

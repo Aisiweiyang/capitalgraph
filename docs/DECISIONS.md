@@ -174,3 +174,67 @@
   节流渲染（800ms/帧）+ AbortController 取消（取消为正常路径，静默停止）。
 - 报告：纯前端组装自包含 HTML（内联 CSS、图表 dataURL 内嵌、文本全转义、图表仅接受
   data:image 前缀），含生成时间/时点 at/阈值/算法版本/配置哈希/免责声明，零后端依赖。
+
+## ADR-017 变更事件流与格局对比口径（2026-09-14，已采纳）
+
+**变更事件流（cg-events/1.0.0，`events.py` 纯函数）**
+- 事件 = from/to 两个时点"有效声明快照"的集合差异（仓储按 status=active 且时点有效过滤），
+  算法只做集合对比：不访问数据库、不做动机推断，事件只陈述声明层面的变化；
+- 事件键 = (subject, predicate, object)。键出现 → 新增类事件（holding_added 含新股东进入）；
+  键消失 → 失效类事件（superseded/到期/退出在有效快照层面等价：旧事实不再有效）；
+- controls/guarantee/pledge 使用专用事件类型（control_gained/lost、guarantee_added/released、
+  pledge_added/released），其余谓词用通用 statement_added/removed；
+- 键在两侧均存在时：单声明对单声明且比例可比较 → holding_ratio_changed（before/after/delta，
+  缩放整数运算后转百分数）；任一侧比例缺失 → 显式 comparable=False，不比较、不补值；
+  同键重录且比例不变 → 无事件（事实未变）；多条声明的键部分重叠 → 退化为按声明增删事件
+  （比例无法无歧义归因），单条新增/失效声明附"该条声明自身"的比例仅作展示；
+- 每条事件附 statement_ids（to 侧或消失侧声明）与 prior_statement_ids（from 侧），
+  二者合并去重即证据引用键（evidence_keys），供 deep-link 反查证据链；
+- 输出按 (event_type, subject_id, object_id) 全排序，同输入同输出；
+- API：/api/v1/events（全局流，分页 + 类型筛选）、/api/v1/entities/{id}/events（单实体）、
+  /api/v1/events/types（类型清单）；均 viewer 可读，响应附 from/to 输入时点与口径说明；
+  from > to 返回 422。默认窗口 = to（缺省今天）回看 730 天。
+
+**格局对比（cg-compare/1.0.0，`compare.py` 纯函数）**
+- 对比 = 两个时点各自**完整重算**（identify_families / aggregate_flows / region_summary）后的
+  结果集合差异；不修改 families.py/flows.py 既有函数签名与行为，复用切片 A 的事件窗口口径；
+- families diff：族出现/消失（族 ID = 控制人集合排序最小者，跨时点按 ID 对齐）、族控制器
+  增减、成员增减清单、成员级"被控路径归属变化"（同一成员首达控制人变化 = 控制权族内移动，
+  必报 changed）、规模/省份覆盖/环路数 before/after；
+- 区域对比：跨省金额、HHI、流向条数的两时点差值 + 新增/消失/变化流向对；任一侧金额缺失
+  时差值显式 None，绝不补值（沿 ADR-014）；flow_pair_delta_check 内置一致性校验
+  （流向对数量变化 = 新增数 − 消失数）；
+- API：/api/v1/families/compare、/api/v1/flows/compare（viewer 可读；/compare 必须先于
+  /{root} 注册）；前端系谱页/流动页提供"对比模式"，报告导出支持 compare 上下文。
+
+**通用约束**
+- 事件与对比结果一律标注"算法候选/研究用途"，不构成法律、信用或投资结论；
+- 时间线可视化自研（HTML/CSS 列表 + 类型筛选 chips），不引入时间线组件库（见 OSS_EVALUATION
+  v0.5 增量）；事件为派生只读视图，无写入路径，不引入事件溯源/CQRS 框架。
+
+## ADR-018 证据覆盖率与 deep-link 口径（2026-09-14，已采纳）
+
+**覆盖率统计（cg-evidence-coverage/1.0.0，`evidence.py` 纯函数 + /api/v1/evidence/coverage）**
+- 输入 = 某时点有效声明（active 且时点有效）与"是否登记了证据片段"的存在性标记
+  （SQL EXISTS，不取片段内容）；声明证据覆盖率 = 有证据片段的 active 声明占比；
+- 按谓词/连接器/年度三个维度分组输出（key/total/covered/missing/coverage_percent 全排序）；
+- 缺失证据的声明显式列出（样本上限 50，全量以 missing_statements 计数为准），只呈现、
+  不修复、不推断；无证据声明 ≠ 无效声明，其结论权重由研究者自行判断；
+- 合成数据每条声明恰登记 1 条证据片段 → 种子库覆盖率恒为 100%，缺失口径由纯函数单测覆盖。
+
+**deep-link 与证据工作台**
+- 证据引用键 = statement_id。全站 deep-link 入口：穿透页 UBO/股东聚合行（statement_ids）、
+  系谱页成员被控路径行、复核页风险标记 payload（statement_ids/via_statement_ids）、
+  异动页事件（evidence_keys）、实体页变更轨迹行——统一跳转 /evidence?statements=id1,id2；
+- /evidence/lookup?ids=（上限 200/次）批量反查声明 → document→snapshot(sha256)→fragment
+  证据链；未命中的声明显式列入 missing_statement_ids；
+- 实体页证据弹层逻辑抽取为共享组件 EvidenceTable（实体页/证据工作台复用）；
+- 报告增强：导出 HTML 附"证据引用表"（编号按首次出现顺序；statement_id → 文档标题/
+  字段路径/内容哈希前 12 位/链接），并在 UBO/股东聚合/族成员结论行内标注证据编号上标
+  （<sup>[n]</sup>，全部文本转义后输出）；证据获取失败不阻断导出（报告中不附证据表）。
+
+**顺带修复（v0.5 内，确定性不变）**
+- synthetic 连接器分批缺陷：原实现将实体与声明按同一索引切片，实体 > 400（_BATCH）时
+  跨批声明的主体键解析失败且证据被静默丢弃；改为"先全部实体批次、后全部声明批次"
+  （同一入库事务内键回查可靠），并把"声明携带证据但批次无来源文档"从静默降级改为显式
+  issue 上报。种子数据生成顺序与载荷不变，既有 seed=42 断言零回归（实测见 TEST_REPORT v0.5）。
