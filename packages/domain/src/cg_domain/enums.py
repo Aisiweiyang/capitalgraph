@@ -104,6 +104,9 @@ class FlagType(StrEnum):
     DUPLICATE_CANDIDATE = "duplicate_candidate"
     STALE_SOURCE = "stale_source"
     CONFLICTING_STATEMENTS = "conflicting_statements"
+    # v0.4 担保/质押风险传导（算法候选，见 ADR-016）
+    GUARANTEE_CYCLE = "guarantee_cycle"
+    GUARANTEE_CHAIN_EXPOSURE = "guarantee_chain_exposure"
 
 
 class ReviewKind(StrEnum):

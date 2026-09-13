@@ -6,7 +6,9 @@ schema contract（15 个必需表头 + 若干可选列；多余列忽略）：
 可选：region_code（6 位省级行政区划代码）、industry（行业名）、amount_wan（金额，万元）
      ——entity 行与关系行均可携带；关系行自动补建实体时同样继承。
 
-- record_type ∈ {entity, holding, control}
+- record_type ∈ {entity, holding, control, guarantee, pledge}
+  （guarantee = provides_guarantee：subject=担保人，object=被担保人，金额用 amount_wan；
+    pledge = pledges_shares：subject=出质人，object=出质股权标的公司，可选 ratio）
 - 坏行跳过并记录 IngestionIssue（失败隔离），不中断整批。
 - 可选列给出但非法（如 region_code 不是省级行政区划代码）→ 该行拒绝并留痕，与坏行同策略。
 - 文件大小上限由 runner 校验（zip bomb / 巨型文件防护在 runner 层）。
@@ -59,6 +61,8 @@ _REQUIRED_HEADERS = [
 _PREDICATE_MAP = {
     "holding": Predicate.HOLDS_SHARES,
     "control": Predicate.CONTROLS,
+    "guarantee": Predicate.PROVIDES_GUARANTEE,
+    "pledge": Predicate.PLEDGES_SHARES,
 }
 
 

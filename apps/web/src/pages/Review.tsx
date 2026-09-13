@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, type ReviewItem } from "../api";
+import { Link } from "react-router-dom";
+import { api, type ReviewItem, type RiskFlagOut } from "../api";
 import { useAuth } from "../auth";
+import { riskFlagLabel } from "../riskDisplay";
 
 export function ReviewPage() {
   const auth = useAuth();
@@ -8,6 +10,7 @@ export function ReviewPage() {
   const [issues, setIssues] = useState<
     { id: string; rule_name: string; severity: string; entity_id: string | null }[] | null
   >(null);
+  const [flags, setFlags] = useState<RiskFlagOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<Record<string, string>>({});
 
@@ -15,6 +18,7 @@ export function ReviewPage() {
     try {
       setItems(await api.reviewItems());
       setIssues(await api.qualityIssues());
+      setFlags(await api.riskFlags().catch(() => null));
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载失败");
     }
@@ -71,6 +75,59 @@ export function ReviewPage() {
                     <span className="muted">{item.status}</span>
                   )}
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h2>算法风险标记（候选 · 不构成认定）</h2>
+      <p className="muted">
+        由担保圈/传导算法自动登记（risk_flags），标注输入摘要与算法版本，可在管理页重新计算。
+      </p>
+      {flags === null ? (
+        <div className="muted">加载中…</div>
+      ) : flags.length === 0 ? (
+        <div className="state-empty">暂无风险标记。可在登录 analyst 后由算法计算生成。</div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>类型</th>
+              <th>主体</th>
+              <th>摘要</th>
+              <th>状态</th>
+              <th>产生时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {flags.map((f) => (
+              <tr key={f.id}>
+                <td>
+                  <span className="tag">{riskFlagLabel(f.flag_type)}</span>
+                </td>
+                <td>
+                  {f.subject_entity_id ? (
+                    <Link to={`/entities/${f.subject_entity_id}`}>
+                      {f.subject_name || f.subject_entity_id.slice(0, 8)}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>
+                  <code className="small">
+                    {f.flag_type === "guarantee_cycle" && Array.isArray(f.payload.cycle)
+                      ? (f.payload.cycle_names as string[] | undefined)?.join(" → ") ??
+                        (f.payload.cycle as string[]).join(" → ")
+                      : (f.payload.note as string | undefined) ??
+                        JSON.stringify(f.payload).slice(0, 80)}
+                  </code>
+                </td>
+                <td>
+                  <span className={`tag status-${f.status}`}>{f.status}</span>
+                </td>
+                <td>{f.created_at.slice(0, 19)}</td>
               </tr>
             ))}
           </tbody>

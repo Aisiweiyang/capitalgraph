@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type EntityDetail, type EvidenceFragment } from "../api";
+import { api, type EntityDetail, type EvidenceFragment, type RiskChainsOut } from "../api";
 import { kindLabel } from "./Search";
+import { formatChain, formatNominal, formatPropagationLevel } from "../riskDisplay";
 
 const PREDICATE_LABEL: Record<string, string> = {
   holds_shares: "持股",
@@ -27,15 +28,22 @@ export function EntityPage() {
   const [evidence, setEvidence] = useState<{ sid: string; fragments: EvidenceFragment[] } | null>(
     null,
   );
+  const [risk, setRisk] = useState<RiskChainsOut | null>(null);
 
   useEffect(() => {
     setDetail(null);
     setError(null);
     setEvidence(null);
+    setRisk(null);
     api
       .entity(id)
       .then(setDetail)
       .catch((err: Error) => setError(err.message));
+    // 风险传导区：加载失败不阻断详情页（如无担保数据/权限）
+    api
+      .riskChains(id)
+      .then(setRisk)
+      .catch(() => setRisk(null));
   }, [id]);
 
   async function showEvidence(statementId: string) {
@@ -106,6 +114,98 @@ export function EntityPage() {
         <h3>对外投资（当前）</h3>
         <StatementTable rows={detail.outgoing} onEvidence={showEvidence} selfId={detail.id} />
       </section>
+
+      {risk && (risk.chains.length > 0 || risk.cycles.length > 0 || risk.pledges.length > 0) && (
+        <section>
+          <h3>风险传导（担保/质押 · 算法候选）</h3>
+          <p className="muted">
+            传导口径：被担保方出险 → 担保方受累；缺失金额显式计数，不构成信用、法律或投资结论。
+          </p>
+
+          {risk.chains.length > 0 && (
+            <>
+              <h4>担保链条（{risk.chains.length}）</h4>
+              <ul className="chain-list">
+                {risk.chains.slice(0, 12).map((c, i) => (
+                  <li key={i}>
+                    <code>{formatChain(c.path)}</code>
+                    <span className="muted"> 名义 {formatNominal(c.nominal_amount_wan, c.amount_missing_edges)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {risk.cycles.length > 0 && (
+            <>
+              <h4>互保圈（{risk.cycles.length}）</h4>
+              <ul className="cycle-list">
+                {risk.cycles.slice(0, 10).map((c, i) => (
+                  <li key={i} className="cycle-closed">
+                    {formatChain(c)} <span className="tag">环闭合</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {risk.propagation.affected_entities.length > 0 && (
+            <>
+              <h4>传导模拟（假设 {risk.propagation.origin.join("、")} 出险）</h4>
+              <ul>
+                {risk.propagation.levels.slice(0, 8).map((lv) => (
+                  <li key={lv.depth}>
+                    {formatPropagationLevel(
+                      lv.depth,
+                      lv.newly_affected,
+                      formatNominal(lv.nominal_amount_wan, lv.amount_missing_edges),
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="muted">
+                受累合计 {risk.propagation.affected_entities.length} 家 · 名义{" "}
+                {formatNominal(
+                  risk.propagation.total_nominal_wan,
+                  risk.propagation.total_amount_missing_edges,
+                )}
+              </p>
+            </>
+          )}
+
+          {risk.pledges.length > 0 && (
+            <>
+              <h4>股权质押（{risk.pledges.length}）</h4>
+              <table className="table compact">
+                <thead>
+                  <tr>
+                    <th>出质人</th>
+                    <th>标的</th>
+                    <th>质押比例</th>
+                    <th>金额</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {risk.pledges.map((p) => (
+                    <tr key={p.statement_id}>
+                      <td>
+                        <Link to={`/entities/${p.pledgor_id}`}>{p.pledgor}</Link>
+                      </td>
+                      <td>
+                        <Link to={`/entities/${p.target_id}`}>{p.target}</Link>
+                      </td>
+                      <td>{p.share_percent != null ? `${p.share_percent}%` : "未知"}</td>
+                      <td>
+                        {p.amount_wan != null ? `${p.amount_wan.toLocaleString("zh-CN")} 万元` : "未知"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </section>
+      )}
 
       {evidence && (
         <section>

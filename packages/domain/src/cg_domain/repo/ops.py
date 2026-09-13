@@ -134,6 +134,31 @@ class OpsRepository:
         await self.session.flush()
         return flag
 
+    async def list_risk_flags(
+        self, *, flag_types: tuple[str, ...] | None = None, limit: int = 200
+    ) -> list[RiskFlag]:
+        """最近产生的风险标记（算法候选，只读展示）。"""
+        stmt = select(RiskFlag).order_by(RiskFlag.created_at.desc()).limit(limit)
+        if flag_types:
+            stmt = stmt.where(RiskFlag.flag_type.in_(list(flag_types)))
+        rows = await self.session.execute(stmt)
+        return list(rows.scalars().all())
+
+    async def open_risk_flag_subjects(self, flag_types: tuple[str, ...] | None = None) -> list[str]:
+        """status=open 的风险标记涉及的去重主体（传导口径："出险"=被标 RiskFlag）。"""
+        stmt = (
+            select(RiskFlag.subject_entity_id)
+            .where(
+                RiskFlag.status == "open",
+                RiskFlag.subject_entity_id.is_not(None),
+            )
+            .distinct()
+        )
+        if flag_types:
+            stmt = stmt.where(RiskFlag.flag_type.in_(list(flag_types)))
+        rows = await self.session.execute(stmt)
+        return [r for r in rows.scalars().all() if r]
+
     # ------------------------------------------------------------- 任务
 
     async def enqueue_task(

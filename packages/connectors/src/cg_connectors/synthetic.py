@@ -91,11 +91,12 @@ class SyntheticConnector(BaseConnector):
     def fetch(
         self, ctx: ConnectorContext
     ) -> Iterator[tuple[ConnectorResult, IngestionIssue | None]]:
-        rng = random.Random(int(ctx.params.get("seed", "42")))  # nosec B311 演示数据生成，非安全用途
+        seed = int(ctx.params.get("seed", "42"))
+        rng = random.Random(seed)  # nosec B311 演示数据生成，非安全用途
         n_entities = min(int(ctx.params.get("entities", "40")), ctx.max_records)
         with_history = ctx.params.get("with_history", "true") == "true"
 
-        graph = self._build_graph(rng, n_entities, with_history)
+        graph = self._build_graph(rng, n_entities, with_history, seed=seed)
         entities = graph["entities"]
         statements = graph["statements"]
 
@@ -121,7 +122,7 @@ class SyntheticConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     def _build_graph(
-        self, rng: random.Random, n_entities: int, with_history: bool
+        self, rng: random.Random, n_entities: int, with_history: bool, *, seed: int = 42
     ) -> dict[str, Any]:
         entities: list[EntityRecord] = []
         statements: list[StatementRecord] = []
@@ -300,6 +301,65 @@ class SyntheticConnector(BaseConnector):
                     share_ratio=60.0,
                     ratio_unit=RatioUnit.PERCENT,
                     evidence=evidence("history[0].after", "60.00%（自 2022-06-01）"),
+                )
+            )
+
+        # --------------------------------------------------------------
+        # v0.4 担保/质押风险传导演示场景（确定性，固定下标，独立 rng 不干扰
+        # 上方持股/控制的生成序列，保持既有 seed 的演示数据稳定）：
+        # - 链式担保圈：C2→C3→C4→C5，金额 12000/9000 万，最末一档缺金额
+        #   （演示"缺失金额显式计数"口径）；
+        # - 环式互保圈：C5→C6→C7→C5，两条 5000 万 + 一条缺金额；
+        # - 股权质押：C1 将所持 C2 的 40% 股权质押，金额 3000 万。
+        # 公司数不足 6/8 时对应场景整体跳过（小规模数据不硬凑）。
+        rng_risk = random.Random(seed * 31 + 9001)  # nosec B311 同上，非安全用途
+        del rng_risk  # 场景值固定；保留派生方式以备将来需要随机金额
+        if len(companies) >= 5:
+            chain_scenarios = [(2, 3, 12000.0), (3, 4, 9000.0), (4, 5, None)]
+            for src_i, dst_i, amt in chain_scenarios:
+                statements.append(
+                    StatementRecord(
+                        subject_key=companies[src_i].key,
+                        predicate=Predicate.PROVIDES_GUARANTEE,
+                        object_key=companies[dst_i].key,
+                        valid_from=base_date,
+                        amount_wan=amt,
+                        note="链式担保圈演示" if amt is not None else "链式担保圈演示（金额缺失）",
+                        evidence=evidence(
+                            f"guarantee_chain[{src_i}->{dst_i}]",
+                            f"担保金额 {amt if amt is not None else '未知'} 万元",
+                        ),
+                    )
+                )
+        if len(companies) >= 8:
+            ring_scenarios = [(5, 6, 5000.0), (6, 7, 5000.0), (7, 5, None)]
+            for src_i, dst_i, amt in ring_scenarios:
+                statements.append(
+                    StatementRecord(
+                        subject_key=companies[src_i].key,
+                        predicate=Predicate.PROVIDES_GUARANTEE,
+                        object_key=companies[dst_i].key,
+                        valid_from=base_date,
+                        amount_wan=amt,
+                        note="环式互保圈演示" if amt is not None else "环式互保圈演示（金额缺失）",
+                        evidence=evidence(
+                            f"guarantee_ring[{src_i}->{dst_i}]",
+                            f"担保金额 {amt if amt is not None else '未知'} 万元",
+                        ),
+                    )
+                )
+        if len(companies) >= 3:
+            statements.append(
+                StatementRecord(
+                    subject_key=companies[1].key,
+                    predicate=Predicate.PLEDGES_SHARES,
+                    object_key=companies[2].key,
+                    valid_from=base_date,
+                    share_ratio=40.0,
+                    ratio_unit=RatioUnit.PERCENT,
+                    amount_wan=3000.0,
+                    note="股权质押演示",
+                    evidence=evidence("pledge[1->2]", "质押所持 40% 股权，3000 万元"),
                 )
             )
 

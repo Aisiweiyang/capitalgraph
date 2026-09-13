@@ -308,6 +308,62 @@ export interface FamiliesFlowsOut {
   count: number;
 }
 
+export interface RiskChainRow {
+  path: string[];
+  path_ids: string[];
+  statement_ids: string[];
+  nominal_amount_wan: number | null;
+  amount_missing_edges: number;
+}
+
+export interface RiskPropagationLevel {
+  depth: number;
+  newly_affected: string[];
+  newly_affected_ids: string[];
+  nominal_amount_wan: number | null;
+  amount_missing_edges: number;
+}
+
+export interface RiskChainsOut {
+  entity_id: string;
+  entity_name: string;
+  at: string | null;
+  algorithm_version: string;
+  config_hash: string;
+  input_digest: string;
+  guarantee_edge_count: number;
+  chains: RiskChainRow[];
+  cycles: string[][];
+  propagation: {
+    origin: string[];
+    levels: RiskPropagationLevel[];
+    affected_entities: string[];
+    affected_entity_ids: string[];
+    total_nominal_wan: number | null;
+    total_amount_missing_edges: number;
+  };
+  pledges: {
+    statement_id: string;
+    pledgor_id: string;
+    target_id: string;
+    pledgor: string;
+    target: string;
+    share_percent: number | null;
+    amount_wan: number | null;
+  }[];
+  assumptions: string[];
+}
+
+export interface RiskFlagOut {
+  id: string;
+  flag_type: string;
+  subject_entity_id: string | null;
+  subject_name: string;
+  payload: Record<string, unknown>;
+  status: string;
+  created_at: string;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>("/auth/login", {
@@ -372,6 +428,13 @@ export const api = {
     const query = qs.toString();
     return request<FamiliesFlowsOut>(`/families/flows${query ? `?${query}` : ""}`);
   },
+
+  riskChains: (entityId: string, at?: string) =>
+    request<RiskChainsOut>(
+      `/risk/chains/${entityId}${at ? `?at=${at}` : ""}`,
+    ),
+
+  riskFlags: (limit = 100) => request<RiskFlagOut[]>(`/risk/flags?limit=${limit}`),
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),

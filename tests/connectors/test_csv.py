@@ -191,3 +191,81 @@ def test_csv_relative_path_accepted(tmp_path, monkeypatch):
     assert issue is None
     assert len(result.entities) == 3
     assert "fixture.csv" in result.raw_payloads
+
+
+RICH_GUARANTEE = (
+    "guarantee,COMPANY-A,甲公司,,110000,金融业,g0,COMPANY-B,乙公司,,310000,,,"
+    ",2021-01-01,,https://example.gov/g,row[9].guarantee,为乙公司担保 5000 万,5000\n"
+)
+
+RICH_HEADER_MIN = (
+    "record_type,subject_id,subject_name,subject_uscc,predicate,object_id,object_name,"
+    "object_uscc,ratio,ratio_unit,valid_from,valid_to,evidence_url,field_path,raw_value,"
+    "region_code,industry,amount_wan"
+)
+
+
+def _rich_csv(*rows: str) -> str:
+    header = (
+        "record_type,subject_id,subject_name,subject_uscc,predicate,object_id,object_name,"
+        "object_uscc,ratio,ratio_unit,valid_from,valid_to,evidence_url,field_path,raw_value,"
+        "amount_wan"
+    )
+    entity_a = "entity,COMPANY-A,甲公司,,110000,,,,,,,https://x,raw,raw,,"
+    entity_b = "entity,COMPANY-B,乙公司,,310000,,,,,,,https://x,raw,raw,,"
+    return "\n".join([header, entity_a, entity_b, *rows])
+
+
+def test_csv_guarantee_row_parses(tmp_path):
+    """record_type=guarantee → provides_guarantee；金额走 amount_wan；ratio 可空。"""
+    from cg_connectors.base import ConnectorContext
+    from cg_connectors.csv_source import CsvFixtureConnector
+
+    row = (
+        "guarantee,COMPANY-A,甲公司,,g0,COMPANY-B,乙公司,,,,2021-01-01,,https://x,raw,为乙担保,5000"
+    )
+    path = write_csv(tmp_path, _rich_csv(row))
+    connector = CsvFixtureConnector()
+    (result, issue), *_ = list(
+        connector.fetch(ConnectorContext(params={"path": path}, max_records=100))
+    )
+    assert issue is None
+    stmt = next(s for s in result.statements if s.predicate.value == "provides_guarantee")
+    assert stmt.subject_key == "src:csv:COMPANY-A"
+    assert stmt.object_key == "src:csv:COMPANY-B"
+    assert stmt.share_ratio is None
+    assert stmt.amount_wan == 5000.0
+    assert stmt.amount_scaled == 500000  # 万元×100
+
+
+def test_csv_guarantee_missing_amount_is_none(tmp_path):
+    """担保金额缺失：合法导入，amount 保持 unknown（绝不补值）。"""
+    from cg_connectors.base import ConnectorContext
+    from cg_connectors.csv_source import CsvFixtureConnector
+
+    row = "guarantee,COMPANY-A,甲公司,,g0,COMPANY-B,乙公司,,,,2021-01-01,,https://x,raw,金额未知,"
+    path = write_csv(tmp_path, _rich_csv(row))
+    connector = CsvFixtureConnector()
+    (result, issue), *_ = list(
+        connector.fetch(ConnectorContext(params={"path": path}, max_records=100))
+    )
+    assert issue is None
+    stmt = next(s for s in result.statements if s.predicate.value == "provides_guarantee")
+    assert stmt.amount_wan is None and stmt.amount_scaled is None
+
+
+def test_csv_pledge_row_parses(tmp_path):
+    """record_type=pledge → pledges_shares：subject=出质人，object=标的公司。"""
+    from cg_connectors.base import ConnectorContext
+    from cg_connectors.csv_source import CsvFixtureConnector
+
+    row = "pledge,COMPANY-A,甲公司,,p0,COMPANY-B,乙公司,,40.00,percent,2021-01-01,,https://x,raw,质押40%,3000"
+    path = write_csv(tmp_path, _rich_csv(row))
+    connector = CsvFixtureConnector()
+    (result, issue), *_ = list(
+        connector.fetch(ConnectorContext(params={"path": path}, max_records=100))
+    )
+    assert issue is None
+    stmt = next(s for s in result.statements if s.predicate.value == "pledges_shares")
+    assert stmt.share_ratio == 40.0
+    assert stmt.amount_wan == 3000.0
