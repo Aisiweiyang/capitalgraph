@@ -38,3 +38,16 @@
 | networkx/networkx | BSD-3-Clause | 3.6.1（2025-11 release） | **暂不引入**：度中心度/HHI 等在 cg-capital-graph 纯函数自研（符合 ADR-002 零依赖图计算）；需要中介中心性/最大流且规模超阈值时再评估（ADR-014） |
 | OpenSPG（Ant Group × OpenKG） | Apache-2.0（工程庞大） | 2026-09-12 核实 | 仅参考其金融领域知识图谱建模思路；不引入 |
 | jm199504/Financial-Knowledge-Graphs | 教学项目 | 2026-09-12 核实 | 参考其金融 KG 构建流程叙述；无代码采用 |
+
+## v0.4 增量调研（2026-09-13，系族与风险传导）
+
+核实方式：GitHub 仓库元数据与 LICENSE 复核（提示词 §3 指定对象）。结论：
+
+| 仓库/资源 | 许可证 | 版本/核实 | 采用结论 |
+| --- | --- | --- | --- |
+| networkx/networkx | BSD-3-Clause | 3.6.1（2026-09-13 复核） | **本轮仍自研，不引入**：系族聚类 = union-find + BFS（O(V+E)），担保链/环 = 迭代 DFS 三色标记（复用环路检测思想），无最短路/流/社群发现需求；引入 networkx 反而破坏 cg-capital-graph 纯函数零依赖边界。触发条件不变：需要 Louvain/中介中心性且规模超阈值时按 ADR 评估 |
+| antvis/G6 | MIT | v5（2026-09-13 复核） | **评估后不引入（ADR-015）**：系族子图规模小（≤30 节点），Cytoscape breadthfirst + 区域着色足够表达；G6 的 combo/分群布局为未来万级成员场景的触发条件，届时做独立组件隔离评估 |
+| apache/echarts | Apache-2.0 | 5.6.0（沿用） | 继续沿用（ADR-013），回放复用既有 map/lines 系列，无新图型 |
+| cytoscape/cytoscape.js | MIT | 3.30（沿用） | 继续沿用；新增 FamilyGraph 组件（独立封装，不影响穿透图） |
+
+无新增后端 Python 运行时依赖（ADR-002/014 纯函数路线保持）；无代码级复制，均为模式借鉴或既有依赖的增量使用。

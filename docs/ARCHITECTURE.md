@@ -85,6 +85,23 @@ graph LR
 缺失计数显式输出（unknown_region_edges / amount_missing_edges），绝不补值。
 区域流动性指标：各省流入/流出/净额、流出集中度 HHI、环路资金（复用 detect_cycles）、年度趋势。
 
+## 系族与风险传导层（v0.4）
+
+在"单点穿透"与"区域流动"之上补齐第三层研究能力（口径见 ADR-015/016）：
+
+- **系族识别**：`cg_capital_graph.families` 纯函数（union-find + BFS）+ `/api/v1/families/*` 路由 +
+  前端「资本系谱」页（Cytoscape 族内子图，控制人居中、成员按区域着色 + 被控路径表 + 族间流向表）。
+  控制类边 = controls + 比例≥阈值的 holds_shares；以非企业控制人为根聚类，共同可达成员并族
+  （交叉持股环因此自然并族）；无控制人分量显式计数不成族。
+- **担保风险传导**：`cg_capital_graph.risk_chains` 纯函数 + `/api/v1/risk/*` 路由 +
+  实体详情页「风险传导」区（链条 A→B→C、互保圈标红、传导模拟、质押敞口）+ 复核页风险标记块。
+  链条沿义务方向（被担保人→担保人）；出险 = 被标 open RiskFlag；结果写 risk_flags
+  （payload 含 input_digest/algorithm_version/config_hash，幂等去重）。
+- **时间演化回放**：流动页按年回放——以 timeline 年份为帧索引，逐帧以年末时点请求
+  summary/regions（串行预取 + 节流渲染 + AbortController），地图着色与流向线随年演化。
+- **研究报告导出**：穿透图/资本流动/资本系谱三页一键导出自包含 HTML（纯前端组装，
+  内联 CSS、图表 dataURL 内嵌、口径与免责声明），零后端依赖。
+
 ## 模块职责
 
 | 模块 | 职责 | 关键约束 |

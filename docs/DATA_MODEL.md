@@ -81,7 +81,7 @@ graph TB
 | --- | --- |
 | derived_paths | 每条路径：root→…→leaf、边声明 id 列表、直接比例、路径乘积、环路标记 |
 | ownership_calculations | 一次计算：root、at、config(深度/阈值)、config_hash、algorithm_version、输入声明集合哈希、聚合有效权益、方法说明、unknown 字段显式置空 |
-| risk_flags | flag_type(cycle/cross_holding/missing_ratio/ratio_anomaly/low_confidence/duplicate_candidate/stale_source)、subject、payload、状态 |
+| risk_flags | flag_type(cycle/cross_holding/missing_ratio/ratio_anomaly/low_confidence/duplicate_candidate/stale_source/**guarantee_cycle/guarantee_chain_exposure**，v0.4 扩展)、subject、payload、状态。担保类 payload 记录 input_digest（边集内容摘要）/algorithm_version/config_hash，同 (类型,主体,摘要) 的 open 标记幂等去重 |
 
 ## 数据质量与复核
 
@@ -103,3 +103,25 @@ graph TB
 - 有效性区间左闭右开：`valid_from <= at < valid_to`；`valid_to` 为空表示至今。
 - 修正不覆盖：旧声明 `status→superseded` 并新开一条，`superseded_by_id` 指向新声明。
 - `recorded_at` 永远不改写历史答案。
+
+## v0.4 合成演示场景（synthetic 连接器，确定性）
+
+担保/质押声明在持股/控制生成之后追加，使用独立 rng（seed 派生，不干扰既有生成序列，
+同 seed 全量数据保持稳定）：
+
+| 场景 | 声明 | 说明 |
+| --- | --- | --- |
+| 链式担保圈 | C2→C3→C4→C5 provides_guarantee（12000/9000 万元，末档缺金额） | 演示链条传导与"缺失金额显式计数" |
+| 环式互保圈 | C5→C6→C7→C5 provides_guarantee（5000×2 + 一条缺金额） | 演示互保圈检测与圈上传导 |
+| 股权质押 | C1 pledges_shares C2（40%，3000 万元） | 质押敞口展示（不参与链式传导） |
+
+公司数不足时对应场景整体跳过（entities≥5 链式、≥8 环式、≥3 质押）。
+
+## CSV 连接器 record_type 扩展（v0.4）
+
+`record_type` 在 entity/holding/control 之外新增：
+
+- `guarantee` → provides_guarantee（subject=担保人，object=被担保人；金额走可选 amount_wan，ratio 可空）；
+- `pledge` → pledges_shares（subject=出质人，object=出质股权标的公司；可选 ratio + amount_wan）。
+
+金额缺失合法入库（amount_scaled=NULL，绝不补值）；坏行仍按行拒绝并留痕。

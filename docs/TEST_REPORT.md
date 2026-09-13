@@ -81,3 +81,42 @@ cd apps/web && npm install && npm run dev
 5. 交叉持股检测在节点集上有界（500/200 对），超出部分不承诺完整（THREAT_MODEL/DELIVERY 双记录）。
 6. 首版未做：舆情/回测/真实交易（提示词范围外）；预留 `Security` 与事件标识接口。
 7. 本会话未接入 DeepSeek 工具（ADR-008），全部代码由 ZCode 实现并自测。
+
+## v0.4 实测记录（2026-09-13，Windows 11 本机）
+
+### 功能与文件位置
+
+| 切片 | 文件 |
+| --- | --- |
+| A 系族识别 | `packages/capital_graph/src/cg_capital_graph/families.py`（纯函数）；`apps/api/src/cg_api/routers/families.py`；`apps/web/src/pages/Families.tsx` + `components/FamilyGraph.tsx` |
+| B 风险传导 | `.../cg_capital_graph/risk_chains.py`（纯函数）；`.../cg_api/routers/risk.py`；`cg_domain/enums.py`（FlagType 扩展）、`repo/ops.py`（list_risk_flags/open_risk_flag_subjects）；`cg_connectors/synthetic.py`（链式/环式担保圈+质押场景）、`csv_source.py`（record_type 扩展）；`apps/web/src/pages/Entity.tsx`（风险传导区）、`Review.tsx`（风险标记）、`riskDisplay.ts` |
+| C 按年回放 | `apps/web/src/replay.ts`（纯逻辑）+ `pages/Flows.tsx`（回放控件与帧渲染） |
+| D 报告导出 | `apps/web/src/report.ts` + Explore/Flows/Families 三页「导出报告」按钮 + `components/EChart.tsx`/`GraphCanvas.tsx` 图表句柄 |
+| 测试 | `tests/capital_graph/test_families.py`(15)、`test_risk_chains.py`(10)、`tests/api/test_families_api.py`(8)、`test_risk_api.py`(10)、`tests/connectors/test_csv.py`(新增3)；前端 `Families.test.tsx`(3)、`riskDisplay.test.ts`(3)、`replay.test.ts`(4)、`report.test.ts`(4)、`Flows.test.tsx`(+2) |
+
+### 实际命令与结果（全部本机实测）
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov --cov-report=term -p no:warnings` | **129 passed**，退出码 0，TOTAL **91.3%**（基线 83 项/89%→129 项/91.3%，零回归） |
+| `cd apps/web && npx vitest run` | **24 passed**（7 文件），退出码 0（基线 8 项 → 24 项） |
+| `npx tsc -b && npm run build` | 类型检查通过，vite 构建成功 |
+| `CG_API_PROXY=… npx playwright test` | **8 passed**（19.0s；E2E 后端临时跑在 8301，经 vite 代理） |
+| `uv run python scripts/module_graph.py` | 模块边界校验通过 |
+| `uv run python scripts/secret_scan.py` | 未发现疑似硬编码密钥 |
+| `uvx bandit -q -r packages apps/api/src workers/src` | 退出码 0，无告警 |
+| `alembic upgrade head → downgrade base → upgrade head` | 迁移回环通过（SQLite） |
+
+### 开源借鉴（详见 OSS_EVALUATION.md v0.4 增量）
+
+- networkx（BSD-3）：**复核后仍自研**——union-find/BFS/DFS 足够，保持纯函数零依赖（ADR-015）；
+- antvis/G6（MIT）：**评估后不引入**——Cytoscape breadthfirst + 区域着色满足系族子图（ADR-015）；
+- 零新增后端 Python 运行时依赖。
+
+### 已知限制与下一步建议
+
+1. 系族聚类以"共同可达成员"并族，未做社群最优化（Louvain）；万级成员场景需重估（ADR-015 触发条件）。
+2. 风险传导为 BFS 逐层扩散的保守口径，未做金额加权概率模型；出险定义=被标 RiskFlag，实为研究假设。
+3. 回放为前端逐帧预取（年数×2 请求），年份数很大时建议后端批量接口（现规模 ≤ 十年×2 无压力）。
+4. 报告导出为纯前端快照，不含证据原文（后续可加证据表 deep-link）。
+5. E2E 未覆盖新页面（families/risk/replay 为集成+单测覆盖）；可按需补 Playwright 用例。

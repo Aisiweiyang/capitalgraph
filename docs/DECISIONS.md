@@ -120,3 +120,57 @@
 - HHI：各省流出金额份额（百分点）平方和，0..10000；流出总额为 0 时输出 None。
 - 环路资金：复用 capital_graph.detect_cycles，统计环路中跨省边数与其中有金额边数。
 - 依赖：全部为 cg-capital-graph 纯函数（flows.py），零新增后端依赖；networkx 暂不引入。
+
+## ADR-015 图谱库取舍：系族子图继续用 Cytoscape，G6 不引入（2026-09-13，已采纳）
+
+- 背景：v0.4 资本系谱页需要"控制人居中、成员分群着色"的族内子图。提示词允许在 Cytoscape
+  表达吃力（需要 combo/分群布局）时对 antvis/G6（MIT）做隔离评估。
+- 实测结论：单族规模小（演示数据 ≤ 30 节点），Cytoscape breadthfirst 布局以控制人为根
+  即可表达层级，节点按 region_code 稳定取色、控制边虚线、环路节点红框——不构成切换
+  图谱库的理由。引入 G6 反而增加 ~200KB 级依赖与双图 API 心智成本。
+- 决策：系族子图以独立组件 `FamilyGraph.tsx` 封装（复用穿透图的交互模式与样式语言），
+  继续基于 Cytoscape；G6 不引入。未来若出现真实的 combo/分群布局需求（万级成员、
+  动态聚缩），再按本 ADR 触发条件做隔离评估（独立组件、不影响穿透图）。
+- networkx 同轮复核：并族用 union-find + BFS（共同可达成员）即可，复杂度 O(V+E)，
+  无需 Louvain 社群发现；继续保持 cg-capital-graph 零第三方运行时依赖（ADR-002/014）。
+
+## ADR-016 系族识别与担保风险传导口径（2026-09-13，已采纳）
+
+**系族识别（cg-families/1.0.0，`families.py` 纯函数）**
+- 控制类边 = controls 声明 + 比例 ≥ 阈值（默认 50%，可配置，`min_control_ratio_percent`）
+  的 holds_shares 声明；controls 的控制语义不由比例推导（与穿透引擎一致）；
+  缺比例的 holds_shares 不构成控制边，以 `missing_ratio_holding_edges` 显式计数。
+- 控制人根仅限非企业实体（默认 person/government_body，可配置）；kind 缺失或企业实体
+  保守地不作根（宁缺毋错，不编造控制人）。
+- 聚类：从每个控制人沿控制方向 BFS 收集可达实体并记录被控路径；同一实体被多个控制人
+  可达 → 并族（共同实控人）。交叉持股环上的实体被环内外控制人共同可达，因此随共同
+  可达自然并族——无需单独的互可达检测（union-find 小根为父，与合并顺序无关）。
+- 无控制人可达的连通分量不成族，实体计入 `unassigned_entity_count` 显式输出。
+- 族 ID = 族内控制人集合排序最小者；族内密度 = 控制类内部边数 / (n·(n-1))，n<2 为 None；
+  跨省分布含 `region_unknown` 计数；族内环路复用 detect_cycles（有界）。
+- 护栏：单控制人遍历成员数/路径深度有界，命中打 `truncated`。同输入同输出（全排序）。
+- 族间流向（`family_flows`）：流动边按（族，族）分组聚合金额；同族边与任一端无族边
+  分别显式计数，不进族间聚合；缺失金额边显式计数，绝不补值（沿用 ADR-014 金额口径）。
+
+**担保风险传导（cg-risk-chains/1.0.0，`risk_chains.py` 纯函数）**
+- 担保边 = 时点有效 provides_guarantee 声明（subject=担保人，object=被担保人），
+  金额用结构化 amount_scaled（万元×100）；缺失金额显式计数，绝不补值。
+- 链条沿"义务方向"（被担保人 → 担保人）回溯：下游出险 → 上游担保人受累；
+  环 = 声明方向（担保人→被担保人）上的环路即互保圈，输出规范化（最小节点起头、
+  含闭合收尾、去重排序）。
+- 传导：出险集合沿义务方向 BFS 逐层扩散（受累去重），每层名义金额 = 引发该层担保边
+  金额合计；任一边缺金额 → 该层名义 None；总计仅当全部金额齐备时输出。
+- "出险"定义 = 被标 open 状态 RiskFlag 的实体；API `POST /risk/compute` 支持显式
+  distressed 参数做模拟。结果写 risk_flags 表（flag_type 枚举扩展 guarantee_cycle /
+  guarantee_chain_exposure），payload 记录 input_digest（边集内容摘要，与顺序无关）/
+  algorithm_version / config_hash；同 (类型, 主体, 输入摘要) 的 open 标记幂等去重。
+- 质押 pledges_shares 不参与链式传导，在实体详情页作为风险敞口列表展示（比例与金额
+  缺失均显式）。
+- RBAC：chains/flags 查询 viewer 可读；compute 需 analyst，写审计日志。
+
+**时间回放与报告导出（前端口径）**
+- 回放：以 /flows/timeline 年份为帧索引，逐帧以"年末日期"（YYYY-12-31，左闭右开区间
+  含全年声明）请求 /flows/summary 与 /flows/regions；请求预算 = 年数 × 2；串行预取 +
+  节流渲染（800ms/帧）+ AbortController 取消（取消为正常路径，静默停止）。
+- 报告：纯前端组装自包含 HTML（内联 CSS、图表 dataURL 内嵌、文本全转义、图表仅接受
+  data:image 前缀），含生成时间/时点 at/阈值/算法版本/配置哈希/免责声明，零后端依赖。
