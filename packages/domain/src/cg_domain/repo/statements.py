@@ -50,6 +50,30 @@ class FlowRow:
     valid_from: date
 
 
+@dataclass(frozen=True)
+class EventRow:
+    """事件对比输入行：时点有效的声明（全部谓词，附比例）。"""
+
+    statement_id: str
+    subject_id: str
+    object_id: str
+    predicate: str
+    share_ratio_scaled: int | None
+
+
+@dataclass(frozen=True)
+class EvidenceCoverageRow:
+    """证据覆盖率统计输入行：时点有效声明 + 是否登记了证据片段。"""
+
+    statement_id: str
+    subject_id: str
+    object_id: str
+    predicate: str
+    connector_id: str
+    year: int
+    has_evidence: bool
+
+
 class StatementRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -275,6 +299,66 @@ class StatementRepository:
         )
         return [FlowRow(*row) for row in rows.all()]
 
+    async def event_rows(
+        self, at: date | None = None, predicates: tuple[str, ...] | None = None
+    ) -> list[EventRow]:
+        """事件对比输入行：某时点有效的声明（默认全部谓词，左闭右开）。"""
+        from cg_domain.enums import Predicate
+
+        at_date = at or date.today()
+        preds = list(predicates) if predicates is not None else [p.value for p in Predicate]
+        rows = await self.session.execute(
+            select(
+                Statement.id,
+                Statement.subject_id,
+                Statement.object_id,
+                Statement.predicate,
+                Statement.share_ratio_scaled,
+            ).where(
+                Statement.status == StatementStatus.ACTIVE.value,
+                Statement.predicate.in_(preds),
+                Statement.valid_from <= at_date,
+                or_(Statement.valid_to.is_(None), Statement.valid_to > at_date),
+            )
+        )
+        return [EventRow(*row) for row in rows.all()]
+
+    async def evidence_coverage_rows(self, at: date | None = None) -> list[EvidenceCoverageRow]:
+        """覆盖率统计输入行：某时点有效声明 + 是否登记了证据片段（存在性判断，不取内容）。"""
+        at_date = at or date.today()
+        has_ev = (
+            select(StatementEvidence.id)
+            .where(StatementEvidence.statement_id == Statement.id)
+            .exists()
+        )
+        rows = await self.session.execute(
+            select(
+                Statement.id,
+                Statement.subject_id,
+                Statement.object_id,
+                Statement.predicate,
+                Statement.connector_id,
+                Statement.valid_from,
+                has_ev,
+            ).where(
+                Statement.status == StatementStatus.ACTIVE.value,
+                Statement.valid_from <= at_date,
+                or_(Statement.valid_to.is_(None), Statement.valid_to > at_date),
+            )
+        )
+        return [
+            EvidenceCoverageRow(
+                statement_id=sid,
+                subject_id=sub,
+                object_id=obj,
+                predicate=pred,
+                connector_id=conn,
+                year=valid_from.year,
+                has_evidence=bool(flag),
+            )
+            for sid, sub, obj, pred, conn, valid_from, flag in rows.all()
+        ]
+
     async def statement_history(self, subject_id: str, object_id: str) -> list[Statement]:
         rows = (
             (
@@ -291,6 +375,74 @@ class StatementRepository:
             .all()
         )
         return list(rows)
+
+    async def evidence_documents(self) -> list[dict]:
+        """来源文档 → 快照 → 片段 导航树（片段计数 + 明细，供证据工作台浏览）。"""
+        doc_rows = (
+            (
+                await self.session.execute(
+                    select(SourceDocument).order_by(SourceDocument.accessed_at, SourceDocument.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        snap_rows = (
+            (
+                await self.session.execute(
+                    select(SourceSnapshot).order_by(SourceSnapshot.fetched_at, SourceSnapshot.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        frag_rows = (
+            (
+                await self.session.execute(
+                    select(EvidenceFragment).order_by(EvidenceFragment.extracted_at)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        frags_by_snap: dict[str, list[EvidenceFragment]] = {}
+        for frag in frag_rows:
+            frags_by_snap.setdefault(frag.snapshot_id, []).append(frag)
+        snaps_by_doc: dict[str, list[SourceSnapshot]] = {}
+        for snap in snap_rows:
+            snaps_by_doc.setdefault(snap.document_id, []).append(snap)
+        return [
+            {
+                "document_id": doc.id,
+                "title": doc.title,
+                "connector_id": doc.connector_id,
+                "source_url": doc.source_url,
+                "notes": doc.notes,
+                "accessed_at": str(doc.accessed_at),
+                "snapshots": [
+                    {
+                        "snapshot_id": snap.id,
+                        "content_sha256": snap.content_sha256,
+                        "fetched_at": str(snap.fetched_at),
+                        "http_status": snap.http_status,
+                        "raw_stored": snap.raw_stored,
+                        "fragment_count": len(frags_by_snap.get(snap.id, ())),
+                        "fragments": [
+                            {
+                                "fragment_id": frag.id,
+                                "field_path": frag.field_path,
+                                "raw_value": frag.raw_value,
+                                "normalized_value": frag.normalized_value,
+                                "page_ref": frag.page_ref,
+                            }
+                            for frag in frags_by_snap.get(snap.id, ())
+                        ],
+                    }
+                    for snap in snaps_by_doc.get(doc.id, ())
+                ],
+            }
+            for doc in doc_rows
+        ]
 
     async def evidence_for_statements(self, statement_ids: list[str]) -> dict[str, list[dict]]:
         """statement_id → 证据片段列表（含快照哈希与文档 URL）。"""

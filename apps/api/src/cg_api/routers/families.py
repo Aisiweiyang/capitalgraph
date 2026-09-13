@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Annotated
 
 from cg_capital_graph import (
     FAMILIES_ALGORITHM_VERSION,
@@ -112,6 +113,80 @@ async def families_list(
         "missing_ratio_holding_edges": result.missing_ratio_holding_edges,
         "assumptions": list(result.assumptions),
         "families": [_family_summary(f, names) for f in fams[:limit]],
+    }
+
+
+@router.get("/compare")
+async def families_compare(
+    _user: ViewerUser,
+    repo: Repo,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: date | None = None,
+    min_control_ratio_percent: float = Query(default=50.0, ge=0.0, le=100.0),
+):
+    """系族格局对比（切片 B，viewer 可读）：两个时点各自识别后做集合差异。
+
+    注意：/compare 必须先于 /{root} 注册，否则会被当作族 ID 解析。
+    """
+    from cg_capital_graph import diff_families
+
+    from cg_api.routers.events import resolve_window
+
+    from_date, to_date = resolve_window(from_, to)
+    before, names, _, _, _ = await _load_families(repo, from_date, min_control_ratio_percent)
+    after, names_after, _, _, _ = await _load_families(repo, to_date, min_control_ratio_percent)
+    diff = diff_families(before, after)
+    all_names = {**names, **names_after}
+    changed = []
+    for row in diff["changed"]:
+        row = dict(row)
+        row["family_name"] = all_names.get(row["family_id"], row["family_id"])
+        row["members_added_names"] = [all_names.get(m, m) for m in row["members_added"]]
+        row["members_removed_names"] = [all_names.get(m, m) for m in row["members_removed"]]
+        row["path_changed_detail"] = [
+            {
+                "member": pc["member"],
+                "member_name": all_names.get(pc["member"], pc["member"]),
+                "controller_before_name": all_names.get(
+                    pc["controller_before"], pc["controller_before"]
+                ),
+                "controller_after_name": all_names.get(
+                    pc["controller_after"], pc["controller_after"]
+                ),
+            }
+            for pc in row["path_changed"]
+        ]
+        changed.append(row)
+    return {
+        "from": from_date.isoformat(),
+        "to": to_date.isoformat(),
+        "min_control_ratio_percent": min_control_ratio_percent,
+        "algorithm_version": diff["algorithm_version"],
+        "family_count": diff["family_count"],
+        "added_families": [
+            {
+                "family_id": fid,
+                "family_name": all_names.get(fid, fid),
+                "member_count": next(
+                    (f.member_count for f in after.families if f.family_id == fid), None
+                ),
+            }
+            for fid in diff["added_family_ids"]
+        ],
+        "removed_families": [
+            {
+                "family_id": fid,
+                "family_name": all_names.get(fid, fid),
+                "member_count": next(
+                    (f.member_count for f in before.families if f.family_id == fid), None
+                ),
+            }
+            for fid in diff["removed_family_ids"]
+        ],
+        "changed": changed,
+        "unchanged_count": diff["unchanged_count"],
+        "unassigned_entity_count": diff["unassigned_entity_count"],
+        "assumptions": list(diff["assumptions"]),
     }
 
 

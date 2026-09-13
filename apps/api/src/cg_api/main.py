@@ -15,7 +15,18 @@ from sqlalchemy import text
 
 from cg_api import auth as auth_module
 from cg_api.ratelimit import RateLimitMiddleware
-from cg_api.routers import entities, families, flows, ingest, ops, penetration, risk, stats
+from cg_api.routers import (
+    entities,
+    events,
+    evidence,
+    families,
+    flows,
+    ingest,
+    ops,
+    penetration,
+    risk,
+    stats,
+)
 from cg_api.state import dispose_engine, init_engine
 
 logger = logging.getLogger("cg_api")
@@ -145,6 +156,8 @@ def create_app() -> FastAPI:
     app.include_router(flows.router, prefix=API_PREFIX)
     app.include_router(families.router, prefix=API_PREFIX)
     app.include_router(risk.router, prefix=API_PREFIX)
+    app.include_router(events.router, prefix=API_PREFIX)
+    app.include_router(evidence.router, prefix=API_PREFIX)
 
     # 前端静态托管（构建产物存在时），SPA 回退 index.html
     web_dist = Path(os.environ.get("CG_WEB_DIST", "apps/web/dist"))

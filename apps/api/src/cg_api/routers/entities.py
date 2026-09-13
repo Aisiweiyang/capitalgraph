@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Annotated
 
 from cg_domain.enums import EntityKind
 from cg_domain.models import scaled_to_percent
@@ -170,6 +171,38 @@ async def statement_evidence(repo: Repo, _user: ViewerUser, entity_id: str, stat
     evidence = await repo.evidence_for_statements([statement_id])
     fragments = evidence.get(statement_id, [])
     return EvidenceOut(statement_id=statement_id, fragments=fragments)
+
+
+@router.get("/{entity_id}/events")
+async def entity_events(
+    repo: Repo,
+    _user: ViewerUser,
+    entity_id: str,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: date | None = None,
+):
+    """单实体变更轨迹（切片 A）：该实体在 from/to 两时点间的声明层面变化摘要。"""
+    from cg_capital_graph import events_for_entity
+
+    from cg_api.routers.events import entity_names, event_out, load_events
+
+    await _load_entity(repo, entity_id)
+    result, from_date, to_date = await load_events(repo, from_, to)
+    events = events_for_entity(result.events, entity_id)
+    names = await entity_names(repo, {e.subject_id for e in events} | {e.object_id for e in events})
+    counts: dict[str, int] = {}
+    for e in events:
+        counts[e.event_type] = counts.get(e.event_type, 0) + 1
+    return {
+        "entity_id": entity_id,
+        "from": from_date.isoformat(),
+        "to": to_date.isoformat(),
+        "algorithm_version": result.algorithm_version,
+        "total": len(events),
+        "counts_by_type": [{"event_type": t, "count": n} for t, n in sorted(counts.items())],
+        "assumptions": list(result.assumptions),
+        "events": [event_out(e, names) for e in events],
+    }
 
 
 @router.get("/{entity_id}/shareholders")

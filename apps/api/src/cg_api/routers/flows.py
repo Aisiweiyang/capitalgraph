@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Annotated
 
 from cg_capital_graph import (
     FlowEdge,
     aggregate_flows,
+    compare_flows,
     detect_cycles,
     flow_timeline,
     industry_flows,
@@ -153,3 +155,33 @@ async def flows_industries(_user: ViewerUser, repo: Repo, at: date | None = None
 async def flows_timeline(_user: ViewerUser, repo: Repo, at: date | None = None):
     cross, _ = await _load_flow_edges(repo, at)
     return {"at": at.isoformat() if at else None, "timeline": flow_timeline(cross)}
+
+
+@router.get("/flows/compare")
+async def flows_compare(
+    _user: ViewerUser,
+    repo: Repo,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: date | None = None,
+):
+    """区域流动格局对比（切片 B，viewer 可读）：跨省金额/HHI/流向条数差值与流向对增减。"""
+    from cg_api.routers.events import resolve_window
+
+    from_date, to_date = resolve_window(from_, to)
+    before_cross, before_all = await _load_flow_edges(repo, from_date)
+    after_cross, after_all = await _load_flow_edges(repo, to_date)
+    result = compare_flows(before_cross, after_cross)
+    return {
+        "from": from_date.isoformat(),
+        "to": to_date.isoformat(),
+        "algorithm_version": result["algorithm_version"],
+        "totals": result["totals"],
+        "flows_added": result["flows_added"],
+        "flows_removed": result["flows_removed"],
+        "flows_changed": result["flows_changed"],
+        "flow_pair_delta_check": result["flow_pair_delta_check"],
+        "assumptions": list(result["assumptions"]),
+        # 单时点摘要（双列视图直接复用）
+        "before_summary": region_summary(before_all),
+        "after_summary": region_summary(after_all),
+    }

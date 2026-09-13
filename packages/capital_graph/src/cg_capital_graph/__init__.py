@@ -20,6 +20,12 @@ from cg_capital_graph.analysis import (
     result_to_jsonable,
     ubo_candidates,
 )
+from cg_capital_graph.compare import (
+    COMPARE_ALGORITHM_VERSION,
+    COMPARE_ASSUMPTIONS,
+    compare_flows,
+    diff_families,
+)
 from cg_capital_graph.engine import (
     ALGORITHM_VERSION,
     GraphEdge,
@@ -27,6 +33,20 @@ from cg_capital_graph.engine import (
     PenetrationTruncatedError,
     build_adjacency,
     penetrate,
+)
+from cg_capital_graph.events import (
+    EVENTS_ALGORITHM_VERSION,
+    EVENTS_ASSUMPTIONS,
+    ChangeEvent,
+    EventsResult,
+    EventStatement,
+    diff_events,
+    events_for_entity,
+)
+from cg_capital_graph.evidence import (
+    EVIDENCE_COVERAGE_VERSION,
+    EvidenceStatRow,
+    evidence_coverage,
 )
 from cg_capital_graph.families import (
     FAMILIES_ALGORITHM_VERSION,
@@ -63,11 +83,20 @@ from cg_capital_graph.risk_chains import (
 
 __all__ = [
     "ALGORITHM_VERSION",
+    "COMPARE_ALGORITHM_VERSION",
+    "COMPARE_ASSUMPTIONS",
+    "EVENTS_ALGORITHM_VERSION",
+    "EVENTS_ASSUMPTIONS",
+    "EVIDENCE_COVERAGE_VERSION",
     "FAMILIES_ALGORITHM_VERSION",
     "FAMILIES_ASSUMPTIONS",
     "RISK_CHAINS_ALGORITHM_VERSION",
     "AnalysisReport",
+    "ChangeEvent",
     "CrossHolding",
+    "EventStatement",
+    "EventsResult",
+    "EvidenceStatRow",
     "FamiliesConfig",
     "FamiliesResult",
     "Family",
@@ -91,10 +120,15 @@ __all__ = [
     "analyse",
     "build_adjacency",
     "canonicalize_cycles",
+    "compare_flows",
     "config_hash",
     "cross_holdings",
     "cross_region",
     "detect_cycles",
+    "diff_events",
+    "diff_families",
+    "events_for_entity",
+    "evidence_coverage",
     "family_flows",
     "flow_timeline",
     "guarantee_chains",
