@@ -165,3 +165,144 @@ def test_lookup_validates_input(api, auth, seeded):
         api.get("/api/v1/evidence/lookup", params={"ids": many}, headers=auth["viewer"]).status_code
         == 422
     )
+
+
+# ---------------------------------------------- v0.6 切片 A：覆盖率趋势（ADR-019）
+
+
+def test_coverage_timeline_requires_auth(api, seeded):
+    assert api.get("/api/v1/evidence/coverage/timeline").status_code == 401
+
+
+def test_coverage_timeline_shape_and_known_years(api, auth, seeded):
+    resp = api.get("/api/v1/evidence/coverage/timeline", headers=auth["viewer"])
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["algorithm_version"].startswith("cg-evidence-timeline/")
+    assert body["assumptions"]
+    tl = body["timeline"]
+    assert tl, "种子库应有年度分组"
+    assert all(
+        {"year", "total", "covered", "missing", "coverage_percent", "delta_vs_prev"} == set(r)
+        for r in tl
+    )
+    years = [r["year"] for r in tl]
+    assert years == sorted(years), "趋势按年度升序"
+    assert 2018 in years, "合成声明 valid_from=2018-01-01"
+    # 种子库每条声明恰有 1 条证据 → 各年覆盖率 100%，缺失为 0
+    assert all(r["covered"] == r["total"] and r["missing"] == 0 for r in tl)
+    assert tl[0]["delta_vs_prev"] is None
+    # 与 /coverage 的按年度分组口径一致
+    cov = api.get("/api/v1/evidence/coverage", headers=auth["viewer"]).json()
+    assert {r["year"]: r["total"] for r in tl} == {g["key"]: g["total"] for g in cov["by_year"]}
+
+
+def test_coverage_timeline_at_filter(api, auth, seeded):
+    # 时点 2021-01-01：2022-06-01 生效的转移声明不参与
+    resp = api.get(
+        "/api/v1/evidence/coverage/timeline", params={"at": "2021-01-01"}, headers=auth["viewer"]
+    )
+    assert resp.status_code == 200
+    tl = resp.json()["timeline"]
+    assert all(r["year"] <= 2021 for r in tl)
+    cov21 = api.get(
+        "/api/v1/evidence/coverage", params={"at": "2021-01-01"}, headers=auth["viewer"]
+    ).json()
+    assert {r["year"]: r["total"] for r in tl} == {g["key"]: g["total"] for g in cov21["by_year"]}
+
+
+# ---------------------------------------- v0.6 切片 B：证据时效规则（ADR-020）
+
+
+def test_staleness_requires_auth(api, seeded):
+    assert api.get("/api/v1/evidence/staleness").status_code == 401
+    assert api.post("/api/v1/evidence/staleness/scan").status_code == 401
+
+
+def test_staleness_viewer_can_read_scan_forbidden(api, auth, seeded):
+    resp = api.get("/api/v1/evidence/staleness", headers=auth["viewer"])
+    assert resp.status_code == 200
+    assert api.post("/api/v1/evidence/staleness/scan", headers=auth["viewer"]).status_code == 403
+
+
+def test_staleness_query_shape_and_validation(api, auth, seeded):
+    resp = api.get("/api/v1/evidence/staleness", headers=auth["viewer"])
+    assert resp.status_code == 200
+    body = resp.json()
+    for key in (
+        "at",
+        "years",
+        "cutoff",
+        "algorithm_version",
+        "stale_count",
+        "stale_candidates",
+        "assumptions",
+    ):
+        assert key in body
+    assert body["algorithm_version"].startswith("cg-evidence-staleness/")
+    for bad_years in ("0", "31"):
+        assert (
+            api.get(
+                "/api/v1/evidence/staleness", params={"years": bad_years}, headers=auth["viewer"]
+            ).status_code
+            == 422
+        )
+
+
+def test_staleness_known_pledge_hit(api, auth, seeded):
+    """种子库仅质押演示声明回填 captured_at=2019-01-01 → 默认阈值下恰有 1 条候选。"""
+    resp = api.get(
+        "/api/v1/evidence/staleness",
+        params={"at": "2024-01-02", "years": 5},
+        headers=auth["viewer"],
+    )
+    body = resp.json()
+    assert body["stale_count"] == 1
+    cand = body["stale_candidates"][0]
+    assert cand["predicate"] == "pledges_shares"
+    assert cand["last_captured_at"].startswith("2019-01-01")
+    assert cand["age_years"] > 4
+    # 边界：at=2024-01-01 → cutoff 恰为 2019-01-01，等于不算陈旧
+    resp = api.get(
+        "/api/v1/evidence/staleness", params={"at": "2024-01-01"}, headers=auth["viewer"]
+    )
+    assert resp.json()["stale_count"] == 0
+
+
+def test_staleness_scan_idempotent_and_audited(api, auth, seeded):
+    resp = api.post(
+        "/api/v1/evidence/staleness/scan",
+        params={"at": "2024-01-02", "years": 5},
+        headers=auth["admin"],
+    )
+    assert resp.status_code == 200
+    first = resp.json()
+    assert first["rule_name"] == "stale_source"
+    assert first["total_candidates"] == 1
+    assert first["created"] == 1 and first["skipped"] == 0
+    # 二扫幂等：同 (rule_name, statement_id) open 去重
+    second = api.post(
+        "/api/v1/evidence/staleness/scan",
+        params={"at": "2024-01-02", "years": 5},
+        headers=auth["admin"],
+    ).json()
+    assert second["created"] == 0 and second["skipped"] == 1
+    # 复核通道（数据质量问题表）可见，detail 带阈值与取证时间
+    issues = api.get("/api/v1/quality/issues", headers=auth["viewer"]).json()
+    stale = [q for q in issues if q["rule_name"] == "stale_source"]
+    assert len(stale) == 1
+    assert stale[0]["statement_id"]
+    assert stale[0]["detail"]["years"] == 5
+    assert stale[0]["detail"]["last_captured_at"].startswith("2019-01-01")
+    # 扫描写审计
+    audit = api.get("/api/v1/audit", headers=auth["admin"]).json()
+    assert any(a["action"] == "evidence.staleness_scan" for a in audit)
+
+
+def test_staleness_scan_validates_years(api, auth, seeded):
+    assert (
+        api.post(
+            "/api/v1/evidence/staleness/scan", params={"years": 0}, headers=auth["admin"]
+        ).status_code
+        == 422
+    )

@@ -173,3 +173,30 @@ cd apps/web && npm install && npm run dev
 
 驱动各轮交付的 ZCode 提示词自 v0.5.1 起随仓库归档于 `docs/prompts/`（05 资本异动与证据
 工作台、05.1 性能与体验优化），作为版本演进的需求侧档案；后续轮次沿用该惯例。
+
+## v0.6 交付（2026-09-15）：证据质量治理层——覆盖率趋势与时效提示
+
+在证据工作台（v0.5 横切面）之上补"趋势"与"新鲜度"两个维度，全部只读呈现/提示性标注，
+不产生认定（ADR-019/020）：
+
+| 切片 | 内容 | 交付 |
+| --- | --- | --- |
+| A 覆盖率趋势 | coverage_timeline 纯函数 + GET /evidence/coverage/timeline + 证据工作台趋势区（ECharts 柱线图 + 逐年表） | 完成 |
+| B 证据时效 | EvidenceRecord.captured_at 数据链路（snapshot.fetched_at 落库、入库时间兜底）+ stale_evidence 纯函数 + GET /staleness 与 POST /staleness/scan（幂等登记复核通道，analyst+）+ 证据工作台时效区 | 完成 |
+| C 报告时效标注 | 报告证据表增"快照时间"列与陈旧标注（与工作台同参数）+ 覆盖率摘要行；获取失败降级省略 | 完成 |
+| D 端到端 | E2E 3 新用例（趋势区/时效区空态与列表/viewer RBAC 提示）+ 性能基线（2008 声明） | 完成 |
+
+实测：后端 179→**203 passed / 92.7%**，前端 vitest 50→**60 passed**，E2E 16→**19 passed**，
+性能基线 timeline p50 15.9ms / staleness p50 20.7ms（2008 声明）。详见 TEST_REPORT §v0.6。
+
+### 开源调研结论
+
+Great Expectations（Apache-2.0）/ Soda Core（Apache-2.0）/ Deequ（Apache-2.0，Spark 绑定）
+的 freshness/覆盖率检查与本项目两条规则同族——**均不引入**（执行引擎与配置体系依赖过重，
+纯函数路线零新增运行时依赖），规则语义借鉴并在 ADR-020 口径说明注明（详见
+OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
+
+### 已知限制
+
+见 TEST_REPORT.md §v0.6 已知限制（时效只提示不认定、旧库 fetched_at 语义兼容、
+趋势差值不构成认定、报告降级省略、E2E 后端限流建议）。

@@ -162,3 +162,28 @@ graph LR
 请求链路示例（异动查询）：`web` → `GET /api/v1/events?from=&to=` → 鉴权/RBAC →
 仓储按两时点加载有效声明（EventRow）→ `cg_capital_graph.diff_events` 纯函数对比 →
 join 实体名 → 分页返回（附 counts_by_type 与口径说明）。
+
+## v0.6 证据质量治理层：覆盖率趋势与时效提示
+
+在证据工作台（覆盖率横切面 + 证据链反查）之上补"趋势"与"新鲜度"两个质量维度，
+二者均为只读呈现、不产生认定（ADR-019/020）：
+
+- **覆盖率趋势（cg-evidence-timeline 纯函数）**：GET /evidence/coverage/timeline 复用
+  /coverage 的时点过滤与证据存在性口径，按声明 valid_from 年度分组，输出逐年
+  total/covered/missing/coverage_percent 与 delta_vs_prev（首年或前序年度无定义为 None）；
+  前端趋势区以 ECharts 柱线图 + 逐年表格呈现；
+- **证据时效（cg-evidence-staleness 纯函数）**：声明证据快照最近取证时间（多快照取 max）
+  早于 at − years 年（默认 5，可配 1–30）→ 列为时效候选；恰好等于阈值不算陈旧；
+  无证据声明不进本规则（归覆盖率缺失通道）；
+- **数据链路**：`EvidenceRecord.captured_at`（可选）入库写入 `source_snapshots.fetched_at`，
+  缺省由入库时间兜底；synthetic 质押证据回填 2019-01-01 作确定性演示；
+- **两条通道分离**：只读查询 GET /evidence/staleness（viewer 可读）；POST /staleness/scan
+  （analyst+）把候选幂等登记进复核通道（QualityIssue，rule_name=stale_source，同声明已有
+  open issue 则 skip）并写审计——提示与处置分离，RBAC 收敛在写通道；
+- **报告增强**：导出 HTML 证据引用表增"快照时间"列与陈旧标注（与工作台同参数），附覆盖率
+  摘要行；两项获取失败均降级不显示、不阻断导出。
+
+请求链路示例（时效扫描）：`web`（analyst）→ `POST /api/v1/evidence/staleness/scan` →
+鉴权/RBAC → 仓储按 max(snapshot.fetched_at) 聚合声明证据新鲜度（EvidenceFreshnessRow）→
+`cg_capital_graph.stale_evidence` 纯函数过滤 → 逐候选幂等登记 QualityIssue → 写审计 →
+返回 created/skipped 计数。

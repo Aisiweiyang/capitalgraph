@@ -73,6 +73,7 @@ async def ingest_connector_result(
             digest,
             storage_key=digest if store_raw else None,
             raw_stored=store_raw,
+            fetched_at=ev.captured_at,
         )
         frag = await repo.add_fragment(snapshot.id, ev)
         fragment_cache[cache_key] = frag.id

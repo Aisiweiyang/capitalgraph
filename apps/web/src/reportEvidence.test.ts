@@ -20,6 +20,7 @@ function lookupOut(ids: string[]): EvidenceLookupOut {
         normalized_value: sid,
         page_ref: "synthetic",
         content_sha256: "a".repeat(64),
+        fetched_at: "2023-01-01T00:00:00+00:00",
         raw_stored: true,
         source_url: "internal://synthetic",
         document_title: "合成演示数据（虚构）",

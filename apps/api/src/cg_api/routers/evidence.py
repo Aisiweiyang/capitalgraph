@@ -1,18 +1,30 @@
-"""证据工作台路由：覆盖率统计、来源文档导航、声明反查证据（viewer 可读，只读）。
+"""证据工作台路由：覆盖率统计、覆盖率趋势、来源文档导航、声明反查、时效风险（只读为主）。
 
-口径沿 ADR-018：覆盖率 = 有证据片段的 active 声明占比（时点有效），
+口径沿 ADR-018/019/020：覆盖率 = 有证据片段的 active 声明占比（时点有效），
+趋势按 valid_from 年度分组逐年对比；时效规则只提示算法候选、不构成认定；
 缺失证据的声明只呈现、不修复；deep-link 以 statement_id 为证据引用键。
 """
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date
 
-from cg_capital_graph import EvidenceStatRow, evidence_coverage
+from cg_capital_graph import (
+    EVIDENCE_TIMELINE_ASSUMPTIONS,
+    EVIDENCE_TIMELINE_VERSION,
+    STALE_EVIDENCE_VERSION,
+    CoverageYearRow,
+    EvidenceFreshnessRow,
+    EvidenceStatRow,
+    coverage_timeline,
+    evidence_coverage,
+    stale_evidence,
+)
 from fastapi import APIRouter, HTTPException, Query
 
-from cg_api.auth import ViewerUser
-from cg_api.deps import Repo
+from cg_api.auth import AnalystUser, ViewerUser
+from cg_api.deps import Ctx, Repo
 
 router = APIRouter(prefix="/evidence", tags=["证据工作台"])
 
@@ -45,6 +57,30 @@ async def evidence_coverage_stats(
     return stats
 
 
+@router.get("/coverage/timeline")
+async def evidence_coverage_timeline(
+    _user: ViewerUser,
+    repo: Repo,
+    at: date | None = None,
+):
+    """覆盖率年度趋势（ADR-019）：复用 /coverage 时点过滤，按 valid_from 年度分组逐年对比。"""
+    rows = await repo.evidence_coverage_rows(at)
+    by_year: dict[int, list[int]] = defaultdict(lambda: [0, 0])  # year -> [total, covered]
+    for r in rows:
+        by_year[r.year][0] += 1
+        if r.has_evidence:
+            by_year[r.year][1] += 1
+    timeline = coverage_timeline(
+        [CoverageYearRow(year=y, total=t, covered=c) for y, (t, c) in by_year.items()]
+    )
+    return {
+        "at": at.isoformat() if at else None,
+        "algorithm_version": EVIDENCE_TIMELINE_VERSION,
+        "timeline": timeline,
+        "assumptions": EVIDENCE_TIMELINE_ASSUMPTIONS,
+    }
+
+
 @router.get("/documents")
 async def evidence_documents(_user: ViewerUser, repo: Repo):
     """来源文档 → 快照 → 片段 导航树（证据工作台浏览视图）。"""
@@ -75,4 +111,100 @@ async def evidence_lookup(
         "found": len(evidence),
         "missing_statement_ids": [sid for sid in wanted if sid not in evidence],
         "evidence": evidence,
+    }
+
+
+@router.get("/staleness")
+async def evidence_staleness(
+    _user: ViewerUser,
+    repo: Repo,
+    at: date | None = None,
+    years: int = Query(5, ge=1, le=30),
+):
+    """证据时效候选（ADR-020，只呈现）：快照最近取证早于时点 − years 年的声明显式列出。"""
+    at_date = at or date.today()
+    rows = await repo.evidence_staleness_rows(at_date)
+    return stale_evidence(
+        [
+            EvidenceFreshnessRow(
+                statement_id=r.statement_id,
+                subject_id=r.subject_id,
+                object_id=r.object_id,
+                predicate=r.predicate,
+                last_captured_at=r.last_captured_at,
+            )
+            for r in rows
+        ],
+        at=at_date,
+        years=years,
+    )
+
+
+@router.post("/staleness/scan")
+async def evidence_staleness_scan(
+    user: AnalystUser,
+    repo: Repo,
+    ctx: Ctx,
+    at: date | None = None,
+    years: int = Query(5, ge=1, le=30),
+):
+    """把时效候选幂等登记进复核通道（QualityIssue，rule_name=stale_source），写审计。
+
+    与 missing_ratio 同通道；同 (rule_name, statement_id) 的 open 标记去重，二扫只跳过。
+    """
+    at_date = at or date.today()
+    rows = await repo.evidence_staleness_rows(at_date)
+    report = stale_evidence(
+        [
+            EvidenceFreshnessRow(
+                statement_id=r.statement_id,
+                subject_id=r.subject_id,
+                object_id=r.object_id,
+                predicate=r.predicate,
+                last_captured_at=r.last_captured_at,
+            )
+            for r in rows
+        ],
+        at=at_date,
+        years=years,
+    )
+    created = skipped = 0
+    for cand in report["stale_candidates"]:
+        if await repo.open_quality_issue("stale_source", cand["statement_id"]) is not None:
+            skipped += 1
+            continue
+        await repo.add_quality_issue(
+            "stale_source",
+            severity="warning",
+            entity_id=cand["subject_id"],
+            statement_id=cand["statement_id"],
+            detail={
+                "at": at_date.isoformat(),
+                "years": years,
+                "predicate": cand["predicate"],
+                "last_captured_at": cand["last_captured_at"],
+                "algorithm_version": STALE_EVIDENCE_VERSION,
+            },
+        )
+        created += 1
+    await repo.audit(
+        actor=user["username"],
+        action="evidence.staleness_scan",
+        request_id=ctx.request_id,
+        result="ok",
+        detail={
+            "at": at_date.isoformat(),
+            "years": years,
+            "candidates": report["stale_count"],
+            "created": created,
+            "skipped": skipped,
+        },
+    )
+    return {
+        "at": at_date.isoformat(),
+        "years": years,
+        "total_candidates": report["stale_count"],
+        "created": created,
+        "skipped": skipped,
+        "rule_name": "stale_source",
     }

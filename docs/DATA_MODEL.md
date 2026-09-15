@@ -142,3 +142,17 @@ graph TB
 合成连接器原按同一索引把实体与声明切片，实体 > 400 时跨批声明主体键解析失败且证据静默丢失；
 v0.5 起先产出全部实体批次再产出全部声明批次（同一事务内标识符回查可靠），并在"声明携带证据
 但批次未登记来源文档"时显式上报 issue。种子数据载荷与顺序不变，既有 seed=42 断言零回归。
+
+## v0.6 证据质量视图：趋势与时效（无新增表）
+
+覆盖率趋势与证据时效延续"派生只读视图"路线，不新增物理表：
+
+- **覆盖率趋势** = 覆盖率输入行（ADR-018 口径）按声明 `valid_from` 年度再分组的纯函数投影；
+  `delta_vs_prev` 为应用层计算的展示字段，不落库；
+- **证据时效** = `relationship_statements`（时点有效）join `statement_evidence → source_snapshots`
+  后按声明取 `MAX(fetched_at)` 的聚合行；`source_snapshots.fetched_at` 语义自此为
+  **证据快照取证时间**（连接器可显式传入 `EvidenceRecord.captured_at`，缺省入库时间兜底），
+  该列自 v0.3 建表即存在，无 schema 变更、无迁移；旧库数据语义自然兼容（等于入库时间）；
+- **时效登记**是 v0.6 唯一写路径：POST /staleness/scan 把候选写为 `quality_issues`
+  （rule_name=stale_source，payload 附 at/years/age_years/cutoff），幂等键 = 同声明已有
+  open 的同名 issue 则 skip——复核通道复用 v0.5 既有表，不新增表。

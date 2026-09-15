@@ -82,6 +82,7 @@ class EvidenceRecord(BaseModel):
     normalized_value: str = ""
     page_ref: str = ""
     content_sha256: str = ""  # 快照内容哈希；为空时由入库服务计算
+    captured_at: datetime | None = None  # 快照取证时间；缺省由入库时间兜底（向后兼容）
 
 
 class StatementRecord(BaseModel):

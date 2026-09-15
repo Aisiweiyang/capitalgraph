@@ -11,7 +11,7 @@ import {
 import { kindLabel } from "./Search";
 import { FamilyGraph } from "../components/FamilyGraph";
 import { assembleReportHtml, downloadReport } from "../report";
-import { collectReportEvidence } from "../reportEvidence";
+import { collectCoverageSummary, collectReportEvidence } from "../reportEvidence";
 import { familyCompareRows } from "../compareDisplay";
 
 type SortMode = "size" | "regions" | "cycles";
@@ -205,7 +205,7 @@ export function FamiliesPage() {
               })()}
               <button
                 className="report-btn"
-                onClick={() =>
+                onClick={async () => {
                   downloadReport(
                     `report_families_compare_${compare.from}_${compare.to}.html`,
                     assembleReportHtml(
@@ -214,10 +214,14 @@ export function FamiliesPage() {
                         title: `系族格局对比报告（${compare.from} → ${compare.to}）`,
                         data: compare,
                       },
-                      { generatedAt: new Date().toISOString(), at: compare.to },
+                      {
+                        generatedAt: new Date().toISOString(),
+                        at: compare.to,
+                        coverageSummary: await collectCoverageSummary(compare.to),
+                      },
                     ),
-                  )
-                }
+                  );
+                }}
               >
                 导出对比报告
               </button>
@@ -300,9 +304,12 @@ export function FamiliesPage() {
               <button
                 className="report-btn"
                 onClick={async () => {
-                  const evidence = await collectReportEvidence(
-                    detail.members.flatMap((m) => m.statement_ids),
-                  );
+                  const [evidence, coverageSummary] = await Promise.all([
+                    collectReportEvidence(detail.members.flatMap((m) => m.statement_ids), {
+                      at: detail.at,
+                    }),
+                    collectCoverageSummary(detail.at),
+                  ]);
                   downloadReport(
                     `report_family_${detail.family_id.slice(0, 8)}.html`,
                     assembleReportHtml(
@@ -313,6 +320,7 @@ export function FamiliesPage() {
                         at: detail.at,
                         minRatioPercent: String(detail.min_control_ratio_percent),
                         evidence,
+                        coverageSummary,
                       },
                     ),
                   );

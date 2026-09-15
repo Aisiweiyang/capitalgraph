@@ -211,3 +211,57 @@ cd apps/web && npm install && npm run dev
 `input[type="date"]` 冲突（穿透页自身输入尚未挂载）。处理：穿透图页时间点输入增加
 `data-testid="explore-at"`，该用例选择器收窄至页内专属 testid（断言语义不变：切换后
 侧栏标题含时点）。其余 15 项用例零改动通过。
+
+## v0.6 实测记录（2026-09-15，Windows 11 本机）
+
+范围：覆盖率趋势（ADR-019）+ 证据时效规则（ADR-020）+ 数据链路（captured_at）+
+报告时效标注/覆盖率摘要 + 前端证据工作台趋势区/时效区 + E2E 与性能基线。
+基线 v0.5.1：后端 179 passed / 92.3%，前端 50 passed，E2E 16 passed。
+
+### 切片 A/B/C（后端与前端逻辑）
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests -q -W ignore` | **203 passed**，退出码 0（基线 179 → 203，+24：coverage_timeline 纯函数 6、GET /coverage/timeline 3、stale_evidence 纯函数 6、repo max(fetched_at) 2、/staleness 与 /staleness/scan API 6、性能基线 1），既有断言零回归 |
+| `cd apps/web && npx tsc -b` | 类型检查通过（修复 Flows 导出按钮 async 块闭合 + report.test.ts fixture 补 fetched_at） |
+| `cd apps/web && npx vitest run` | **60 passed**（11 文件），退出码 0（基线 50 → 60：趋势/时效展示 6、报告快照列/陈旧标注/覆盖率摘要/边界 4） |
+
+### 切片 D（E2E 与性能基线）
+
+E2E 种子库按惯例重建（`rm data/e2e-v05.sqlite3 && CG_DATABASE_URL=… CG_API_PROXY 代理
+8301`）：`python -m cg_api.seed --entities 40 --seed 40` → 140 声明，建库后校验
+`source_snapshots`：**仅质押 1 条 fetched_at=2019-01-01，其余 139 条为建库当日**（captured_at
+回填生效，旧库无迁移、语义兼容）。
+
+| 命令 | 结果 |
+| --- | --- |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **19 passed**（14.3s；基线 16 + 新增 3：趋势区渲染、时效区候选表/空态切换、viewer 视角扫描按钮 RBAC 提示），零回归。首轮因后端默认限流 120/分触发 1 次 429（用例数增多导致），E2E 后端改以 `CG_RATE_LIMIT_PER_MINUTE=1200` 启动后全绿（已记录 USER_GUIDE §9） |
+| `uv run pytest tests/performance/test_v06_perf.py -q -s` | 通过（见下方基线） |
+
+### 性能基线（切片 D，2008 声明规模）
+
+`uv run pytest tests/performance/test_v06_perf.py -q -s`（seed=42 确定性合成，实体 640 →
+**声明 2008**，各 5 次取 p50/max；趋势年度数=2，5 年阈值候选=1）：
+
+| 端点 | p50 | max |
+| --- | --- | --- |
+| GET /evidence/coverage/timeline | 15.9 ms | 89.9 ms |
+| GET /evidence/staleness?years=5 | 20.7 ms | 25.9 ms |
+
+（AMD64 / Python 3.12.13 / Windows；只读全量扫描型端点，护栏与 v0.5 同数量级——
+默认超时 10s 级别，实际低 1–2 个数量级。）
+
+### 安全与其他
+
+| 项 | 结果 |
+| --- | --- |
+| `uv run python scripts/module_graph.py` | 模块边界校验通过 |
+| RBAC | /staleness/scan 写通道 analyst+（viewer 401/403 断言在 API 测试内），只读端点 viewer 可读 |
+| 幂等 | /staleness/scan 重复执行 created=0/skipped=N 断言（API 测试） |
+
+### 已知限制与口径提示
+
+1. 时效规则只提示不认定（ADR-020）；快照缺省取证时间为入库时间，旧库语义自然兼容。
+2. 覆盖率趋势按生效年度分组，年度差值不构成质量改进/恶化的认定（声明集合随时点变化）。
+3. 报告证据表上限 1000 条（分批收集），覆盖率摘要与陈旧标注获取失败均降级省略。
+4. E2E 用例增多后需提高 E2E 后端限流限额（见 USER_GUIDE §9），生产限流策略不变。

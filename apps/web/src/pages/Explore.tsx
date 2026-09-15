@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type PenetrationResult, type SearchOut } from "../api";
 import { GraphCanvas, type GraphHandles } from "../components/GraphCanvas";
 import { assembleReportHtml, downloadReport } from "../report";
-import { collectReportEvidence } from "../reportEvidence";
+import { collectCoverageSummary, collectReportEvidence } from "../reportEvidence";
 import { kindLabel } from "./Search";
 
 const LARGE_GRAPH_PATHS = 2000; // 超大图降级阈值
@@ -164,9 +164,15 @@ export function ExplorePage() {
             <button onClick={() => void exportCsv(data, at)}>导出 CSV</button>
             <button
               onClick={async () => {
-                const evidence = await collectReportEvidence([
-                  ...data.ubo_candidates.flatMap((u) => u.statement_ids),
-                  ...data.aggregates.flatMap((a) => a.statement_ids),
+                const [evidence, coverageSummary] = await Promise.all([
+                  collectReportEvidence(
+                    [
+                      ...data.ubo_candidates.flatMap((u) => u.statement_ids),
+                      ...data.aggregates.flatMap((a) => a.statement_ids),
+                    ],
+                    { at: data.at },
+                  ),
+                  collectCoverageSummary(data.at),
                 ]);
                 downloadReport(
                   `report_penetration_${data.root.slice(0, 8)}.html`,
@@ -178,6 +184,7 @@ export function ExplorePage() {
                       at: data.at,
                       minRatioPercent: String(data.config.min_ratio_percent),
                       evidence,
+                      coverageSummary,
                     },
                   ),
                 );

@@ -112,6 +112,7 @@ export interface EvidenceFragment {
   normalized_value: string;
   page_ref: string;
   content_sha256: string;
+  fetched_at: string;
   raw_stored: boolean;
   source_url: string;
   document_title: string;
@@ -536,6 +537,52 @@ export interface EvidenceLookupOut {
   evidence: Record<string, EvidenceFragment[]>;
 }
 
+// ------------------------------------------------ v0.6 证据质量治理层（趋势 + 时效）
+
+export interface CoverageTimelineRow {
+  year: number;
+  total: number;
+  covered: number;
+  missing: number;
+  coverage_percent: number | null;
+  delta_vs_prev: number | null;
+}
+
+export interface EvidenceTimelineOut {
+  at: string | null;
+  algorithm_version: string;
+  timeline: CoverageTimelineRow[];
+  assumptions: string[];
+}
+
+export interface StalenessCandidate {
+  statement_id: string;
+  subject_id: string;
+  object_id: string;
+  predicate: string;
+  last_captured_at: string;
+  age_years: number;
+}
+
+export interface EvidenceStalenessOut {
+  at: string;
+  years: number;
+  cutoff: string;
+  algorithm_version: string;
+  stale_count: number;
+  stale_candidates: StalenessCandidate[];
+  assumptions: string[];
+}
+
+export interface StalenessScanOut {
+  at: string;
+  years: number;
+  total_candidates: number;
+  created: number;
+  skipped: number;
+  rule_name: string;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>("/auth/login", {
@@ -652,10 +699,31 @@ export const api = {
   evidenceCoverage: (at?: string) =>
     request<EvidenceCoverageOut>(`/evidence/coverage${at ? `?at=${at}` : ""}`),
 
+  evidenceCoverageTimeline: (at?: string) =>
+    request<EvidenceTimelineOut>(`/evidence/coverage/timeline${at ? `?at=${at}` : ""}`),
+
   evidenceDocuments: () => request<EvidenceDocumentsOut>("/evidence/documents"),
 
   evidenceLookup: (ids: string[]) =>
     request<EvidenceLookupOut>(`/evidence/lookup?ids=${encodeURIComponent(ids.join(","))}`),
+
+  evidenceStaleness: (params: { at?: string; years?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.at) qs.set("at", params.at);
+    if (params.years != null) qs.set("years", String(params.years));
+    const query = qs.toString();
+    return request<EvidenceStalenessOut>(`/evidence/staleness${query ? `?${query}` : ""}`);
+  },
+
+  evidenceStalenessScan: (params: { at?: string; years?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.at) qs.set("at", params.at);
+    if (params.years != null) qs.set("years", String(params.years));
+    const query = qs.toString();
+    return request<StalenessScanOut>(`/evidence/staleness/scan${query ? `?${query}` : ""}`, {
+      method: "POST",
+    });
+  },
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),

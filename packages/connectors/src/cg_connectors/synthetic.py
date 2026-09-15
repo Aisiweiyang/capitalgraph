@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Iterator
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 from cg_domain.enums import ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
@@ -38,6 +38,11 @@ _CITY = "北京上海深圳广州杭州成都武汉南京西安重庆苏州天�
 _SUFFIX = ("有限公司", "股份有限公司")
 
 _BATCH = 400
+
+# 质押演示声明的证据取证时间：固定字面量，供证据时效（stale_source）规则的确定性演示。
+# 独立于上方任何随机序列，不改变 seed=42 下的实体/声明载荷——仅该条证据的快照
+# fetched_at 与众不同（其余证据仍按入库时间兜底），既有断言零影响。
+_PLEDGE_CAPTURED_AT = datetime(2019, 1, 1, tzinfo=UTC)
 
 # 省份抽样权重：沿海/经济活跃省份更高，形成有结构的（而非均匀噪声的）跨区域流动演示
 _REGION_WEIGHTS = tuple(
@@ -194,7 +199,9 @@ class SyntheticConnector(BaseConnector):
             )
         entities.extend(persons)
 
-        def evidence(path: str, raw: str) -> list[EvidenceRecord]:
+        def evidence(
+            path: str, raw: str, captured_at: datetime | None = None
+        ) -> list[EvidenceRecord]:
             return [
                 EvidenceRecord(
                     document_title="合成演示数据（虚构）",
@@ -203,6 +210,7 @@ class SyntheticConnector(BaseConnector):
                     raw_value=raw,
                     normalized_value=raw,
                     page_ref="synthetic",
+                    captured_at=captured_at,
                 )
             ]
 
@@ -373,7 +381,11 @@ class SyntheticConnector(BaseConnector):
                     ratio_unit=RatioUnit.PERCENT,
                     amount_wan=3000.0,
                     note="股权质押演示",
-                    evidence=evidence("pledge[1->2]", "质押所持 40% 股权，3000 万元"),
+                    evidence=evidence(
+                        "pledge[1->2]",
+                        "质押所持 40% 股权，3000 万元",
+                        captured_at=_PLEDGE_CAPTURED_AT,
+                    ),
                 )
             )
 

@@ -64,3 +64,20 @@
 | apache/echarts、cytoscape/cytoscape.js | Apache-2.0 / MIT | 5.6.0 / 3.30（沿用） | 继续沿用既有版本，零新增前端依赖 |
 
 无新增后端 Python 运行时依赖（ADR-002/014/015 纯函数路线保持）；无代码级复制，均为模式借鉴。
+
+## v0.6 增量调研（2026-09-15，证据质量治理：覆盖率趋势与时效规则）
+
+核实方式：GitHub 仓库元数据与 LICENSE 复核（核实日期 2026-09-15）。数据质量规则引擎的
+主流实现与本项目"覆盖率 + 时效"两条规则的对应关系：
+
+| 仓库/资源 | 许可证 | 版本/核实 | 采用结论 |
+| --- | --- | --- | --- |
+| great-expectations/great_expectations | Apache-2.0 | 1.x（2026-09-10 发版，2026-09-15 复核） | **不引入，规则语义借鉴**：GX 的 `expect_column_values_to_be_between`/`expect_column_pair_values_a_to_be_greater_than_b` 等 Expectation 与本项目"阈值 + 窗口"规则同族；其数据资产级 Checkpoint 运行模型依赖 pandas/Spark 执行后端与 YAML 配置体系，对单服务 SQLAlchemy 架构过重；覆盖率/时效各约百行纯函数即可表达，且需要"缺失显式、恰好等于阈值不算陈旧"等业务口径 |
+| sodadata/soda-core | Apache-2.0 | 4.18.0（2026-09-15 复核） | **不引入**：SodaCL 的 `freshness(column) < 1d` / `missing_count(x) = 0` 检查语法与本项目时效/缺失规则同族（ADR-020 口径说明已注明）；同样因执行引擎与配置体系依赖（需 data source 配置 + checks YAML）不匹配，纯函数路线（ADR-002）保持零新增运行时依赖 |
+| awslabs/deequ | Apache-2.0 | 2.0.14-spark-4.0（2026-09-15 复核） | **不引入**：Completeness/Freshness analyzers 语义同族，但 Deequ 绑定 Spark 运行时（JVM/分布式计算），SQLite 单机服务场景完全不匹配；其"metrics repository + anomaly detection"思路留作大规模阶段的评估备选（按 ADR-002 触发条件再评估） |
+| pydantic/pydantic、sqlalchemy 等 | MIT / MIT | 沿用 | 沿用既有版本，零新增后端 Python 运行时依赖 |
+
+**同族规则的口径对齐**：三者的 freshness/时效检查均默认"阈值 + 窗口"语义；本项目在
+ADR-020 中补充了三处显式业务口径——恰好等于阈值不算陈旧（严格小于）、无证据声明不进
+时效规则（归覆盖率缺失通道）、时效只提示不认定（ISO/IEC 25012 Currentness：新度要求
+取决于使用语境）。均为模式借鉴，无代码级复制。

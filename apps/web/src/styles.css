@@ -189,3 +189,6 @@ a { color: var(--accent); }
 .evidence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin: 12px 0; }
 .report-btn { margin-left: 8px; background: #475569; }
 .evidence-page .panel { margin: 10px 0; }
+
+.evidence-trend { width: 100%; height: 260px; }
+.stale { color: #b42318; font-weight: 600; }

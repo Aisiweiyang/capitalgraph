@@ -182,3 +182,91 @@ async def test_document_and_evidence_chain(db_session):
     )
     assert snap.content_sha256 == "ab" * 32
     assert frag.snapshot_id == snap.id
+
+
+async def test_snapshot_fetched_at_explicit_and_default(db_session):
+    """快照取证时间：显式传入生效；缺省走 ORM default=utcnow（向后兼容）。"""
+    from datetime import UTC, datetime
+
+    repo = Repository(db_session)
+    doc = await repo.register_document(
+        DocumentRef(connector_id="csv", title="t.csv", source_url="file:///t.csv")
+    )
+    explicit = await repo.add_snapshot(
+        doc.id, "aa" * 32, fetched_at=datetime(2019, 1, 1, tzinfo=UTC)
+    )
+    default = await repo.add_snapshot(doc.id, "bb" * 32)
+    assert explicit.fetched_at == datetime(2019, 1, 1, tzinfo=UTC)
+    assert default.fetched_at is not None
+
+
+async def test_staleness_rows_max_fetched_at_excludes_uncovered(db_session):
+    """时效输入行：多快照取最近取证时间；无证据声明不出现；时点过滤生效。"""
+    from datetime import UTC, datetime
+
+    repo = Repository(db_session)
+    a = await make_entity(repo, "P7", "王七")
+    b = await make_entity(repo, "C7", "丙公司")
+    doc = await repo.register_document(
+        DocumentRef(connector_id="csv", title="t2.csv", source_url="file:///t2.csv")
+    )
+    snap_old = await repo.add_snapshot(
+        doc.id, "c1" * 32, fetched_at=datetime(2010, 1, 1, tzinfo=UTC)
+    )
+    snap_new = await repo.add_snapshot(
+        doc.id, "c2" * 32, fetched_at=datetime(2021, 6, 1, tzinfo=UTC)
+    )
+    frag_old = await repo.add_fragment(snap_old.id, EvidenceRecord(field_path="f", raw_value="v1"))
+    frag_new = await repo.add_fragment(snap_new.id, EvidenceRecord(field_path="f", raw_value="v2"))
+
+    def stmt(ratio: float) -> StatementRecord:
+        return StatementRecord(
+            subject_key="src:synthetic:P7",
+            predicate=Predicate.HOLDS_SHARES,
+            object_key="src:synthetic:C7",
+            valid_from=date(2018, 1, 1),
+            share_ratio=ratio,
+            ratio_unit=RatioUnit.PERCENT,
+        )
+
+    covered, _ = await repo.add_statement(
+        stmt(60.0),
+        subject_id=a.id,
+        object_id=b.id,
+        connector_id="csv",
+        ingestion_run_id=None,
+        fragment_ids=[frag_old.id, frag_new.id],
+    )
+    bare, _ = await repo.add_statement(
+        stmt(30.0), subject_id=a.id, object_id=b.id, connector_id="csv", ingestion_run_id=None
+    )
+
+    rows = {r.statement_id: r for r in await repo.evidence_staleness_rows(date(2024, 1, 1))}
+    assert bare.id not in rows, "无证据声明不进时效规则"
+    assert rows[covered.id].last_captured_at == datetime(2021, 6, 1).date(), "多快照取最大"
+
+    # 时点过滤：声明 2024 年失效（valid_to）后不再出现在更晚时点
+    later, _ = await repo.add_statement(
+        StatementRecord(
+            subject_key="src:synthetic:P7",
+            predicate=Predicate.HOLDS_SHARES,
+            object_key="src:synthetic:C7",
+            valid_from=date(2018, 1, 1),
+            valid_to=date(2023, 1, 1),
+            share_ratio=20.0,
+            ratio_unit=RatioUnit.PERCENT,
+        ),
+        subject_id=a.id,
+        object_id=b.id,
+        connector_id="csv",
+        ingestion_run_id=None,
+        fragment_ids=[frag_new.id],
+    )
+    rows_at = {r.statement_id for r in await repo.evidence_staleness_rows(date(2024, 1, 1))}
+    assert later.id not in rows_at
+    rows_before = {r.statement_id for r in await repo.evidence_staleness_rows(date(2022, 1, 1))}
+    assert later.id in rows_before
+
+    # lookup 附加 fetched_at（ISO 字符串）
+    ev = await repo.evidence_for_statements([covered.id])
+    assert ev[covered.id][0]["fetched_at"].startswith("20")

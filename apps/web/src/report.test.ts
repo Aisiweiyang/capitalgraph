@@ -4,6 +4,7 @@ import {
   assembleReportHtml,
   buildReportEvidence,
   evidenceSup,
+  staleCapturedAt,
   REPORT_DISCLAIMER,
 } from "./report";
 
@@ -192,6 +193,7 @@ describe("报告证据引用表（v0.5 切片 C）", () => {
         normalized_value: "51.00%",
         page_ref: "synthetic",
         content_sha256: "a".repeat(64),
+        fetched_at: "2023-06-01T00:00:00Z",
         raw_stored: true,
         source_url: "internal://synthetic",
         document_title: "合成演示数据（虚构）",
@@ -325,5 +327,74 @@ describe("对比报告组装（v0.5 切片 B）", () => {
     expect(html).toContain("9000");
     expect(html).toContain("—");
     expect(html).not.toContain("<sup>");
+  });
+});
+
+describe("报告证据成色（v0.6 切片 C）", () => {
+  const frag = (sid: string, fetched_at: string): EvidenceFragment[] => [
+    {
+      fragment_id: `f-${sid}`,
+      field_path: `p/${sid}`,
+      raw_value: sid,
+      normalized_value: sid,
+      page_ref: "synthetic",
+      content_sha256: "b".repeat(64),
+      fetched_at,
+      raw_stored: true,
+      source_url: "",
+      document_title: "doc",
+    },
+  ];
+  const evidence = {
+    s_old: frag("s_old", "2019-01-01T00:00:00+00:00"),
+    s_new: frag("s_new", "2023-06-01T00:00:00+00:00"),
+  };
+
+  it("staleCapturedAt：恰好等于 N 年不算陈旧；缺快照时间的证据不定性", () => {
+    expect(staleCapturedAt("2019-01-01T00:00:00Z", "2024-01-02", 5)).toBe(true);
+    expect(staleCapturedAt("2019-01-02T00:00:00Z", "2024-01-02", 5)).toBe(false);
+    expect(staleCapturedAt(null, "2024-01-02", 5)).toBe(false);
+    expect(staleCapturedAt("not-a-date", "2024-01-02", 5)).toBe(false);
+  });
+
+  it("buildReportEvidence 附快照时间与陈旧标记（阈值可传，默认 5 年）", () => {
+    const evd = buildReportEvidence(["s_old", "s_new"], evidence, { at: "2024-01-02" });
+    expect(evd.stale_years).toBe(5);
+    expect(evd.entries[0].captured_at).toBe("2019-01-01T00:00:00+00:00");
+    expect(evd.entries[0].stale).toBe(true);
+    expect(evd.entries[1].stale).toBe(false);
+    const tight = buildReportEvidence(["s_old"], evidence, { at: "2024-01-02", years: 8 });
+    expect(tight.entries[0].stale).toBe(false);
+  });
+
+  it("证据引用表新增快照时间列，陈旧条目标注且说明只提示不认定", () => {
+    const evd = buildReportEvidence(["s_old", "s_new"], evidence, { at: "2024-01-02" });
+    const html = assembleReportHtml(
+      { kind: "penetration", title: "穿透研究报告", data: penetration },
+      { generatedAt: "2026-09-14T00:00:00Z", evidence: evd },
+    );
+    expect(html).toContain("快照时间");
+    expect(html).toContain("陈旧(&gt;5 年)");
+    expect(html).toContain("2019-01-01");
+    expect(html).toContain("只提示");
+    expect(html).toContain("class=\"stale\"");
+  });
+
+  it("报告元信息附覆盖率摘要；未传时不含该行（降级不显示）", () => {
+    const withCov = assembleReportHtml(
+      { kind: "penetration", title: "穿透研究报告", data: penetration },
+      {
+        generatedAt: "2026-09-14T00:00:00Z",
+        coverageSummary: { coverage_percent: 99.95, total_active_statements: 2008, missing_statements: 1 },
+      },
+    );
+    expect(withCov).toContain("证据覆盖率");
+    expect(withCov).toContain("99.95%");
+    expect(withCov).toContain("2008");
+    const without = assembleReportHtml(
+      { kind: "penetration", title: "穿透研究报告", data: penetration },
+      { generatedAt: "2026-09-14T00:00:00Z" },
+    );
+    expect(without).not.toContain("证据覆盖率");
   });
 });

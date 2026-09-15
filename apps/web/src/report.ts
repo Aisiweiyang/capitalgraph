@@ -29,6 +29,31 @@ export interface ReportOptions {
   minRatioPercent?: string | null;
   /** 证据引用（v0.5 切片 C）：编号上标 + 报告尾部证据引用表。 */
   evidence?: ReportEvidence;
+  /** 覆盖率摘要（v0.6 切片 C）：导出时并行获取，失败降级不显示。 */
+  coverageSummary?: CoverageSummary;
+}
+
+export interface CoverageSummary {
+  coverage_percent: number | null;
+  total_active_statements: number;
+  missing_statements: number;
+}
+
+/** 证据快照取证时间是否早于时点 − years 年（与 /evidence/staleness 同口径，ADR-020）。
+ * 恰好等于阈值不算陈旧；缺快照时间或时间不可解析时不定性。 */
+export function staleCapturedAt(
+  capturedAt: string | null | undefined,
+  at: string | null | undefined,
+  years = 5,
+): boolean {
+  if (!capturedAt) return false;
+  const captured = new Date(capturedAt).getTime();
+  if (Number.isNaN(captured)) return false;
+  const asOf = at ? new Date(`${at}T00:00:00Z`).getTime() : Date.now();
+  if (Number.isNaN(asOf)) return false;
+  const cutoff = new Date(asOf);
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - years);
+  return captured < cutoff.getTime();
 }
 
 export interface ReportEvidenceEntry {
@@ -37,6 +62,8 @@ export interface ReportEvidenceEntry {
   document_title: string;
   field_path: string;
   content_sha256: string;
+  captured_at: string | null;
+  stale: boolean;
   source_url: string;
 }
 
@@ -44,13 +71,18 @@ export interface ReportEvidence {
   entries: ReportEvidenceEntry[];
   /** statement_id → 编号（出现顺序，从 1 起）。 */
   refByStatement: Record<string, number>;
+  /** 判定陈旧用的阈值（年），供表格标注展示。 */
+  stale_years: number;
 }
 
-/** 由证据反查结果组装报告证据引用（编号 = 首次出现顺序，确定性）。 */
+/** 由证据反查结果组装报告证据引用（编号 = 首次出现顺序，确定性）。
+ * v0.6：附快照取证时间与陈旧标记（阈值与证据工作台同参数）。 */
 export function buildReportEvidence(
   statementIds: string[],
   evidence: Record<string, EvidenceFragment[]>,
+  opts: { at?: string | null; years?: number } = {},
 ): ReportEvidence {
+  const years = opts.years ?? 5;
   const refByStatement: Record<string, number> = {};
   const entries: ReportEvidenceEntry[] = [];
   for (const sid of statementIds) {
@@ -58,16 +90,19 @@ export function buildReportEvidence(
     const fragments = evidence[sid] ?? [];
     refByStatement[sid] = entries.length + 1;
     const frag = fragments[0];
+    const capturedAt = frag?.fetched_at || null;
     entries.push({
       no: entries.length + 1,
       statement_id: sid,
       document_title: frag?.document_title ?? "（未登记证据片段）",
       field_path: frag?.field_path ?? "—",
       content_sha256: (frag?.content_sha256 ?? "").slice(0, 12),
+      captured_at: capturedAt,
+      stale: staleCapturedAt(capturedAt, opts.at, years),
       source_url: frag?.source_url ?? "",
     });
   }
-  return { entries, refByStatement };
+  return { entries, refByStatement, stale_years: years };
 }
 
 /** 行内证据编号上标：<sup>[1,3]</sup>；无引用时为空串。 */
@@ -125,6 +160,11 @@ function table(headers: string[], rows: Cell[][]): string {
 
 function metaRow(label: string, value: string): string {
   return `<div class="meta"><span class="meta-label">${esc(label)}</span>${esc(value)}</div>`;
+}
+
+function coverageSummaryText(c: CoverageSummary): string {
+  const pct = c.coverage_percent != null ? `${c.coverage_percent}%` : "—";
+  return `${pct}（有效声明 ${c.total_active_statements} · 缺失 ${c.missing_statements}）`;
 }
 
 function chartImage(chartPng: string | null | undefined): string {
@@ -303,16 +343,25 @@ function sections(ctx: ReportContext, opts: ReportOptions): string {
 
 function evidenceTableSection(evidence: ReportEvidence): string {
   if (evidence.entries.length === 0) return "";
+  const staleCount = evidence.entries.filter((e) => e.stale).length;
   return [
     "<h2>证据引用表</h2>",
+    staleCount
+      ? `<p class="meta">其中 ${staleCount} 条证据快照取证时间早于数据时点 − ${evidence.stale_years} 年，标注为陈旧——只提示、不构成认定。</p>`
+      : "",
     table(
-      ["编号", "声明 ID", "来源文档", "字段路径", "内容哈希（前 12 位）", "链接"],
+      ["编号", "声明 ID", "来源文档", "字段路径", "内容哈希（前 12 位）", "快照时间", "链接"],
       evidence.entries.map((e) => [
         `[${e.no}]`,
         e.statement_id,
         e.document_title,
         e.field_path,
         e.content_sha256 || "—",
+        {
+          html:
+            esc(e.captured_at ? e.captured_at.slice(0, 10) : "—") +
+            (e.stale ? ` <span class="stale">陈旧(&gt;${evidence.stale_years} 年)</span>` : ""),
+        },
         e.source_url || "—",
       ]),
     ),
@@ -364,6 +413,7 @@ ${metaRow("控制/比例阈值", opts.minRatioPercent ? `${opts.minRatioPercent}
 ${metaRow("算法版本", algorithmVersion)}
 ${configHash ? metaRow("配置哈希", configHash) : ""}
 ${metaRow("数据来源", "确定性合成演示数据（虚构主体）")}
+${opts.coverageSummary ? metaRow("证据覆盖率", coverageSummaryText(opts.coverageSummary)) : ""}
 ${chartImage(opts.chartPng)}
 ${sections(ctx, opts)}
 ${opts.evidence ? evidenceTableSection(opts.evidence) : ""}

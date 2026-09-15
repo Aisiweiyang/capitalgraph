@@ -18,6 +18,7 @@ import {
 } from "../components/EChart";
 import { replayYears, runReplay, yearEndIso, type ReplayFrame } from "../replay";
 import { assembleReportHtml, downloadReport } from "../report";
+import { collectCoverageSummary } from "../reportEvidence";
 import { flowsMetricRows } from "../compareDisplay";
 
 type WeightMode = "amount" | "count";
@@ -411,7 +412,8 @@ export function FlowsPage() {
         </button>
         {viewSummary && (
           <button
-            onClick={() =>
+            onClick={async () => {
+              const at = replayOn && frame ? yearEndIso(frame.year) : null;
               downloadReport(
                 `report_flows_${replayOn && frame ? frame.year : "current"}.html`,
                 assembleReportHtml(
@@ -427,11 +429,12 @@ export function FlowsPage() {
                   {
                     generatedAt: new Date().toISOString(),
                     chartPng: mapHandles.current?.getDataURL() ?? null,
-                    at: replayOn && frame ? yearEndIso(frame.year) : null,
+                    at,
+                    coverageSummary: await collectCoverageSummary(at),
                   },
                 ),
               )
-            }
+            }}
           >
             导出报告
           </button>
@@ -553,7 +556,7 @@ export function FlowsPage() {
               </p>
               <button
                 className="report-btn"
-                onClick={() =>
+                onClick={async () => {
                   downloadReport(
                     `report_flows_compare_${compare.from}_${compare.to}.html`,
                     assembleReportHtml(
@@ -562,10 +565,14 @@ export function FlowsPage() {
                         title: `区域流动格局对比报告（${compare.from} → ${compare.to}）`,
                         data: compare,
                       },
-                      { generatedAt: new Date().toISOString(), at: compare.to },
+                      {
+                        generatedAt: new Date().toISOString(),
+                        at: compare.to,
+                        coverageSummary: await collectCoverageSummary(compare.to),
+                      },
                     ),
-                  )
-                }
+                  );
+                }}
               >
                 导出对比报告
               </button>

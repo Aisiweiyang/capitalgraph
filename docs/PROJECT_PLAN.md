@@ -100,3 +100,34 @@ CapitalGraph CN 改在独立子目录 `资本图谱/` 内实施（见 ADR-010）
 - [x] 文档同步：ADR-017/018、ARCHITECTURE、DATA_MODEL、OSS_EVALUATION、USER_GUIDE、
       TEST_REPORT（实测命令与结果 + 2008 声明性能基线）、DELIVERY、README
 - [x] 顺带修复 synthetic 分批缺陷（大规格跨批键解析/证据静默丢失），seed=42 断言零回归（ADR-018）
+
+## v0.6 计划与验收清单（证据质量治理层：覆盖率趋势与时效提示）
+
+目标：在证据工作台（覆盖率横切面 + 证据链反查）之上回答两个新问题——覆盖情况随时间
+怎么变（趋势）、证据"存在"是否还"新鲜"（时效）——并把两者以"只提示、不认定"的纪律
+贯穿 API、工作台与研究报告（ADR-019/020）。
+
+| 切片 | 内容 | 状态 |
+| --- | --- | --- |
+| A 覆盖率趋势 | coverage_timeline 纯函数 + /evidence/coverage/timeline + 工作台趋势区 | 完成 |
+| B 证据时效 | captured_at 数据链路 + stale_evidence 纯函数 + /staleness 与 /staleness/scan + 工作台时效区 | 完成 |
+| C 报告时效标注 | 报告证据表快照时间列/陈旧标注 + 覆盖率摘要行（失败降级） | 完成 |
+| D 端到端 | E2E 3 新用例 + 种子库重建（captured_at 回填）+ 性能基线 | 完成 |
+
+验收清单（全部有实测证据，见 TEST_REPORT.md §v0.6）：
+
+- [x] coverage_timeline/stale_evidence 纯函数单测：逐年分组与合并、delta 首年/空年度显式 None、
+      确定性；阈值边界（恰好等于不算陈旧、越界报错）、2 月 29 日平年平移、多快照取 max、
+      无证据声明不进规则
+- [x] /coverage/timeline、/staleness、/staleness/scan API 集成测试：RBAC（只读 viewer 可读、
+      写通道 analyst+，viewer 401/403）、参数校验（years 1..30 之外 422）、scan 幂等
+      （重复执行 created=0/skipped=N）、synthetic 质押证据 2019-01-01 已知候选断言
+- [x] repo 层 max(fetched_at) 聚合测试；synthetic 质押证据回填 2019-01-01 且 seed=42 载荷零影响
+- [x] 前端 vitest：趋势/时效展示格式化 6 项、报告快照列/陈旧标注/覆盖率摘要/降级 4 项；
+      tsc -b 通过
+- [x] 既有测试不回归：后端 179→203 项全绿（92.7%）；前端 50→60 项全绿；E2E 16→19 项全绿
+- [x] 模块边界检查通过；性能基线（2008 声明：timeline p50 15.9ms / staleness p50 20.7ms，
+      护栏 10s）；开源调研（GX/Soda Core/Deequ freshness 同族规则，均不引入，
+      OSS_EVALUATION v0.6 增量）；趋势/时效结果全部标注"算法候选/只提示不认定"
+- [x] 文档同步：ADR-019/020、ARCHITECTURE、DATA_MODEL、OSS_EVALUATION、USER_GUIDE、
+      TEST_REPORT（实测命令与结果 + 性能基线）、DELIVERY、README、PROJECT_PLAN v0.6 验收清单

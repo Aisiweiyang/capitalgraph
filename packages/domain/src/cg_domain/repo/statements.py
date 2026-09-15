@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cg_domain.enums import IngestionStatus, StatementStatus
@@ -74,6 +74,20 @@ class EvidenceCoverageRow:
     has_evidence: bool
 
 
+@dataclass(frozen=True)
+class EvidenceStalenessRow:
+    """证据时效规则输入行：时点有效且登记过证据的声明 + 快照最近取证时间。
+
+    仅含登记过证据的声明（内连接）；无证据声明由覆盖率缺失通道呈现。
+    """
+
+    statement_id: str
+    subject_id: str
+    object_id: str
+    predicate: str
+    last_captured_at: date
+
+
 class StatementRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -99,6 +113,7 @@ class StatementRepository:
         storage_key: str | None = None,
         http_status: int | None = None,
         raw_stored: bool = False,
+        fetched_at: datetime | None = None,
     ) -> SourceSnapshot:
         snap = SourceSnapshot(
             document_id=document_id,
@@ -107,6 +122,9 @@ class StatementRepository:
             http_status=http_status,
             raw_stored=raw_stored,
         )
+        if fetched_at is not None:
+            # 显式传入才覆盖；None 时维持 ORM default=utcnow（向后兼容）
+            snap.fetched_at = fetched_at
         self.session.add(snap)
         await self.session.flush()
         return snap
@@ -359,6 +377,41 @@ class StatementRepository:
             for sid, sub, obj, pred, conn, valid_from, flag in rows.all()
         ]
 
+    async def evidence_staleness_rows(self, at: date | None = None) -> list[EvidenceStalenessRow]:
+        """时效规则输入行：时点有效且登记过证据的声明，附快照最近取证时间（max）。"""
+        at_date = at or date.today()
+        rows = await self.session.execute(
+            select(
+                Statement.id,
+                Statement.subject_id,
+                Statement.object_id,
+                Statement.predicate,
+                func.max(SourceSnapshot.fetched_at),
+            )
+            .join(StatementEvidence, StatementEvidence.statement_id == Statement.id)
+            .join(
+                EvidenceFragment,
+                EvidenceFragment.id == StatementEvidence.evidence_fragment_id,
+            )
+            .join(SourceSnapshot, SourceSnapshot.id == EvidenceFragment.snapshot_id)
+            .where(
+                Statement.status == StatementStatus.ACTIVE.value,
+                Statement.valid_from <= at_date,
+                or_(Statement.valid_to.is_(None), Statement.valid_to > at_date),
+            )
+            .group_by(Statement.id, Statement.subject_id, Statement.object_id, Statement.predicate)
+        )
+        return [
+            EvidenceStalenessRow(
+                statement_id=sid,
+                subject_id=sub,
+                object_id=obj,
+                predicate=pred,
+                last_captured_at=fetched.date(),
+            )
+            for sid, sub, obj, pred, fetched in rows.all()
+        ]
+
     async def statement_history(self, subject_id: str, object_id: str) -> list[Statement]:
         rows = (
             (
@@ -468,6 +521,7 @@ class StatementRepository:
                     "normalized_value": frag.normalized_value,
                     "page_ref": frag.page_ref,
                     "content_sha256": snap.content_sha256,
+                    "fetched_at": snap.fetched_at.isoformat(),
                     "raw_stored": snap.raw_stored,
                     "source_url": doc.source_url,
                     "document_title": doc.title,

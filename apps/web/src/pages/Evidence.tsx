@@ -6,19 +6,35 @@ import {
   type EvidenceDocumentsOut,
   type EvidenceFragment,
   type EvidenceLookupOut,
+  type EvidenceStalenessOut,
+  type EvidenceTimelineOut,
 } from "../api";
+import { useAuth } from "../auth";
+import { EChart } from "../components/EChart";
 import { EvidenceTable } from "../components/EvidenceTable";
-import { coverageHeadline } from "../evidenceDisplay";
+import {
+  coverageHeadline,
+  coverageTimelineOption,
+  deltaText,
+  stalenessScanText,
+  stalenessSummaryText,
+} from "../evidenceDisplay";
 
-/** 证据工作台（v0.5 切片 C）：覆盖率卡片、按来源文档浏览、按声明反查证据。 */
+/** 证据工作台（v0.5 切片 C）：覆盖率卡片、按来源文档浏览、按声明反查证据。
+ * v0.6：覆盖率趋势（ADR-019）与时效风险候选（ADR-020）。 */
 export function EvidencePage() {
   const [params, setParams] = useSearchParams();
   const deepLink = params.get("statements") ?? "";
   const [coverage, setCoverage] = useState<EvidenceCoverageOut | null>(null);
+  const [timeline, setTimeline] = useState<EvidenceTimelineOut | null>(null);
+  const [staleYears, setStaleYears] = useState(5);
+  const [staleness, setStaleness] = useState<EvidenceStalenessOut | null>(null);
+  const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [documents, setDocuments] = useState<EvidenceDocumentsOut | null>(null);
   const [lookup, setLookup] = useState<EvidenceLookupOut | null>(null);
   const [query, setQuery] = useState(deepLink);
   const [error, setError] = useState<string | null>(null);
+  const { hasRole } = useAuth();
 
   useEffect(() => {
     api
@@ -26,10 +42,21 @@ export function EvidencePage() {
       .then(setCoverage)
       .catch((err: Error) => setError(err.message));
     api
+      .evidenceCoverageTimeline()
+      .then(setTimeline)
+      .catch(() => setTimeline(null));
+    api
       .evidenceDocuments()
       .then(setDocuments)
       .catch(() => setDocuments(null));
   }, []);
+
+  useEffect(() => {
+    api
+      .evidenceStaleness({ years: staleYears })
+      .then(setStaleness)
+      .catch(() => setStaleness(null));
+  }, [staleYears]);
 
   // deep-link：?statements=id1,id2 → 自动反查
   useEffect(() => {
@@ -52,6 +79,16 @@ export function EvidencePage() {
       setParams(ids.length ? { statements: ids.join(",") } : {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "反查失败");
+    }
+  }
+
+  async function runScan() {
+    setScanMsg(null);
+    try {
+      const out = await api.evidenceStalenessScan({ years: staleYears });
+      setScanMsg(stalenessScanText(out));
+    } catch (err) {
+      setScanMsg(err instanceof Error ? err.message : "扫描入库失败");
     }
   }
 
@@ -142,6 +179,130 @@ export function EvidencePage() {
           )}
         </>
       )}
+
+      {timeline && (
+        <section className="panel">
+          <h4>覆盖率趋势（按声明生效年度，{timeline.algorithm_version}）</h4>
+          {timeline.timeline.length > 0 ? (
+            <>
+              <EChart
+                option={coverageTimelineOption(timeline.timeline)}
+                className="evidence-trend"
+              />
+              <table className="table compact" data-testid="coverage-timeline-table">
+                <thead>
+                  <tr>
+                    <th>年度</th>
+                    <th>声明数</th>
+                    <th>缺失</th>
+                    <th>覆盖率</th>
+                    <th>较上年</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeline.timeline.map((r) => (
+                    <tr key={r.year}>
+                      <td>{r.year}</td>
+                      <td>{r.total}</td>
+                      <td>{r.missing}</td>
+                      <td>{r.coverage_percent != null ? `${r.coverage_percent}%` : "—"}</td>
+                      <td>{deltaText(r.delta_vs_prev)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <div className="state-empty" data-testid="coverage-timeline-empty">
+              暂无趋势数据。
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="panel">
+        <h4>时效风险（算法候选，阈值 {staleYears} 年）</h4>
+        <p className="muted">
+          证据快照取证时间早于时点 − {staleYears} 年的声明列为候选：只提示、不构成证据无效或任何认定；
+          无证据声明不进本规则（见上方缺失口径）。
+        </p>
+        <div className="controls">
+          <label>
+            时效阈值（年）
+            <select
+              value={staleYears}
+              onChange={(e) => setStaleYears(Number(e.target.value))}
+              data-testid="staleness-years"
+            >
+              {[1, 2, 3, 5, 8, 10, 15, 20, 30].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+          {staleness && <span className="muted">{stalenessSummaryText(staleness)}</span>}
+          {hasRole("analyst") ? (
+            <button onClick={() => void runScan()} data-testid="staleness-scan">
+              扫描入库（复核通道）
+            </button>
+          ) : (
+            <span className="muted" data-testid="staleness-scan-hint">
+              登录 analyst 后可将候选幂等登记进复核通道
+            </span>
+          )}
+        </div>
+        {scanMsg && (
+          <p className="muted" data-testid="staleness-scan-result">
+            {scanMsg}
+          </p>
+        )}
+        {staleness && staleness.stale_candidates.length > 0 ? (
+          <table className="table compact" data-testid="staleness-table">
+            <thead>
+              <tr>
+                <th>声明</th>
+                <th>谓词</th>
+                <th>最近取证</th>
+                <th>证据年龄（年）</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {staleness.stale_candidates.map((c) => (
+                <tr key={c.statement_id}>
+                  <td>
+                    <Link to={`/entities/${c.subject_id}`}>主体</Link> →{" "}
+                    <Link to={`/entities/${c.object_id}`}>对象</Link>
+                  </td>
+                  <td>{c.predicate}</td>
+                  <td>{c.last_captured_at.slice(0, 10)}</td>
+                  <td>{c.age_years}</td>
+                  <td>
+                    <button className="linklike" onClick={() => setQuery(c.statement_id)}>
+                      反查
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="state-empty" data-testid="staleness-empty">
+            当前阈值下没有候选声明。
+          </div>
+        )}
+        {staleness && (
+          <details className="assumptions">
+            <summary>口径说明（{staleness.algorithm_version}）</summary>
+            <ul>
+              {staleness.assumptions.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
 
       <section className="panel">
         <h4>按声明反查证据（deep-link：?statements=id1,id2）</h4>

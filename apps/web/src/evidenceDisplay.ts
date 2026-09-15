@@ -1,6 +1,13 @@
-/** 证据工作台的展示口径（纯函数，供覆盖率卡片与单测使用）。 */
+/** 证据工作台的展示口径（纯函数，供覆盖率卡片、趋势图、时效区与单测使用）。 */
 
-import type { CoverageGroup, EvidenceCoverageOut } from "./api";
+import type {
+  CoverageGroup,
+  CoverageTimelineRow,
+  EvidenceCoverageOut,
+  EvidenceStalenessOut,
+  StalenessScanOut,
+} from "./api";
+import type { EChartsCoreOption } from "./components/EChart";
 
 export interface CoverageHeadline {
   percentText: string;
@@ -24,4 +31,41 @@ export function coverageHeadline(out: EvidenceCoverageOut): CoverageHeadline {
       ? { label: String(weakestGroup.key), group: weakestGroup }
       : null,
   };
+}
+
+/** 覆盖率趋势折线图：年度为 x 轴，覆盖率为单序列（无数据年份断线，不补值）。 */
+export function coverageTimelineOption(timeline: CoverageTimelineRow[]): EChartsCoreOption {
+  return {
+    grid: { left: 48, right: 16, top: 24, bottom: 28 },
+    tooltip: {
+      trigger: "axis",
+      valueFormatter: (v: unknown) => (v == null ? "—" : `${v}%`),
+    },
+    xAxis: { type: "category", data: timeline.map((r) => String(r.year)) },
+    yAxis: { type: "value", min: 0, max: 100, axisLabel: { formatter: "{value}%" } },
+    series: [
+      {
+        name: "覆盖率",
+        type: "line",
+        data: timeline.map((r) => r.coverage_percent),
+        connectNulls: false,
+      },
+    ],
+  };
+}
+
+/** 逐年前后的变化量展示：正数带 + 号，无前值为 —。 */
+export function deltaText(delta: number | null): string {
+  if (delta == null) return "—";
+  return `${delta > 0 ? "+" : ""}${delta}`;
+}
+
+/** 时效区摘要行：截止日期与候选数。 */
+export function stalenessSummaryText(out: EvidenceStalenessOut): string {
+  return `截止 ${out.cutoff} · 候选 ${out.stale_count} 条`;
+}
+
+/** 扫描入库结果行：created/skipped 与规则名。 */
+export function stalenessScanText(out: StalenessScanOut): string {
+  return `已入库 ${out.created} 条（跳过重复 ${out.skipped} 条）· 规则 ${out.rule_name}`;
 }
