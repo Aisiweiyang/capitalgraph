@@ -342,3 +342,56 @@ E2E 种子库按惯例重建（`rm data/e2e-v05.sqlite3 && CG_DATABASE_URL=… C
 - ORM 索引与热查询匹配完整（statements 的 subject/object/temporal 组合索引、
   evidence 链路各外键索引均已存在）；
 - repo 层批量反查均为单条 IN 查询，无 N+1。
+
+## v0.7 实测记录（2026-09-16，Windows 11 本机）
+
+范围：质量规则族（有效性 / 唯一性 / 跨源一致性）+ /evidence/quality 五维度总览 +
+工作台质量总览区 + E2E + 性能基线。基线 v0.6.3：后端 216 passed / 94.3%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **228 passed / 94.4%**（+12：质量纯函数 7、质量 API 4、性能基线 1），既有断言零回归 |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 0 errors / **60 passed** |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **20 passed**（13.4s；基线 19 + 质量总览 1） |
+| `uv run pytest tests/performance/test_v07_perf.py -q -s` | 通过（见下方基线） |
+| ruff check / format、secret_scan、module_graph、npm audit、pip-audit | 全部通过 |
+
+### 性能基线（2008 声明规模，各 5 次取 p50/max）
+
+| 端点 | p50 | max |
+| --- | --- | --- |
+| GET /evidence/quality（五维度总览，内部 4 次只读扫描） | 53.4 ms | 55.8 ms |
+
+counts（seed=42，640 实体）：coverage_missing=0 / staleness=1（质押 2019-01-01）/
+validity=0 / uniqueness=0 / consistency=0。（AMD64 / Python 3.12.13 / Windows）
+
+### 合成库上的真实候选（规则自检）
+
+- 合成连接器有"必须产出合法 USCC"的生成器不变量 → 有效性候选恒为 0（规则由
+  API 测试内直接注入非法标识符验证捕获）；
+- 12 实体规格下转移场景存在同键两条 holds_shares → 唯一性规则如实标出 1 组
+  （确定性，API 测试断言）；该候选属"需人工甄别"范畴，符合只提示不认定口径。
+
+## v0.7.1 维护记录（2026-09-16，可视化与流动感抛光，零功能/零依赖变更）
+
+范围：路由过渡与悬停动效、路由加载反馈、流向线拖尾特效、趋势图抛光、穿透图布局动画。
+基线 v0.7：后端 228 passed / 94.4%，前端 60，E2E 20。
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 0 errors / 60 passed |
+| `npm run build` | 成功，体积不变（纯 CSS 动效，零新依赖） |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **20 passed**（14.2s），画布类用例（穿透图/回放/导出）零回归 |
+| ruff、secret_scan、module_graph | 通过（后端零改动） |
+
+### 动效清单
+
+- **样式动效层**：面板进场（fade+上移 0.28s）、计数卡悬停浮起、按钮/导航与表格行
+  过渡、路由加载脉冲反馈（PageFallback 样式化）；全局响应
+  `prefers-reduced-motion: reduce`（减弱动效偏好下全部退化为瞬时）；
+- **流向线拖尾**：省际流向线开启 effect 拖尾（统一 60px/s、trailLength 0.35）。
+  保留两条既有约束——入场动画仍关闭（后台标签页 rAF 节流导致整线不可见的原修复）、
+  progressive: 0（导出可见性）；拖尾叠加在静态线之上，后台冻结仅损失动效不损失内容；
+- **趋势图抛光**：覆盖率趋势线平滑 + 面积渐变 + 数据点标记（vitest 断言的
+  轴/数据结构未动）；
+- **穿透图**：breadthfirst 布局节点滑入就位（300ms），替代瞬现。

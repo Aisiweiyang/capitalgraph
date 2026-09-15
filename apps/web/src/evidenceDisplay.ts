@@ -49,6 +49,11 @@ export function coverageTimelineOption(timeline: CoverageTimelineRow[]): ECharts
         type: "line",
         data: timeline.map((r) => r.coverage_percent),
         connectNulls: false,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 6,
+        lineStyle: { width: 2.5 },
+        areaStyle: { opacity: 0.12 },
       },
     ],
   };

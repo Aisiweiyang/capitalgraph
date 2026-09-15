@@ -173,6 +173,9 @@ export function GraphCanvas({
         directed: true,
         padding: 24,
         spacingFactor: 1.35,
+        // 节点滑入就位（短暂），数据/深度变化即重放
+        animate: true,
+        animationDuration: 300,
       } as cytoscape.LayoutOptions,
       wheelSensitivity: 0.2,
     });

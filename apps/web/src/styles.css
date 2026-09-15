@@ -192,3 +192,43 @@ a { color: var(--accent); }
 
 .evidence-trend { width: 100%; height: 260px; }
 .stale { color: #b42318; font-weight: 600; }
+
+/* ===== 动效层（v0.7.1）：进场 / 悬停 / 加载反馈 ===== */
+
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.panel { animation: view-in 0.28s ease-out both; }
+
+.stat-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(28, 36, 48, 0.08);
+}
+
+button, .header nav a { transition: background-color 0.15s ease, color 0.15s ease; }
+.table tbody tr { transition: background-color 0.12s ease; }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.route-fallback {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  animation: pulse-soft 1.2s ease-in-out infinite;
+}
+
+/* 无障碍：用户偏好减弱动效时全部退化为瞬时 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -238,8 +238,17 @@ export function FlowsPage() {
           type: "lines",
           coordinateSystem: "geo",
           zlevel: 2,
-          effect: { show: false },
-          // 后台标签页 rAF 被节流时进场动画会停在 0%，线将不可见：禁用动画保证始终绘制
+          // 流动拖尾：叠加在静态线之上，后台标签页 rAF 节流时拖尾冻结但底线始终可见
+          effect: {
+            show: true,
+            period: 6,
+            constantSpeed: 60, // 统一 px/s，远近线流速一致
+            symbol: "circle",
+            symbolSize: 3.5,
+            trailLength: 0.35,
+            opacity: 0.85,
+          },
+          // 入场动画仍须关闭（后台标签页停在 0% 会整线不可见）；拖尾不受此开关影响
           animation: false,
           progressive: 0, // 增量渲染层在后台标签页不刷新，禁用以保证离屏/导出可见
           lineStyle: { width: 1.2, opacity: 0.55, curveness: 0.25 },

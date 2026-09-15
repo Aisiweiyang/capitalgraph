@@ -25,7 +25,7 @@ const ReviewPage = lazy(() => import("./pages/Review").then((m) => ({ default: m
 const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
 
 function PageFallback() {
-  return <div className="muted">模块加载中…</div>;
+  return <div className="route-fallback">模块加载中…</div>;
 }
 
 function Header() {
