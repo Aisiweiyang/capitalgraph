@@ -9,6 +9,7 @@ from typing import ClassVar
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -118,6 +119,10 @@ def create_app() -> FastAPI:
     @app.on_event("shutdown")
     async def _shutdown() -> None:
         await dispose_engine(app)
+
+    # 响应压缩（最内层：外层的审计/安全头中间件仍看到原始响应）。
+    # JSON 载荷与前端资源体积收益明显；阈值以下不压，避免负收益。
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     origins = os.environ.get("CG_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     app.add_middleware(

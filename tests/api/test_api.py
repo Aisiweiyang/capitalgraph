@@ -310,3 +310,28 @@ def test_flows_timeline_and_industries(api, auth, seeded):
 
 def test_flows_requires_auth(api):
     assert api.get("/api/v1/flows/summary").status_code == 401
+
+
+def test_large_responses_gzipped_and_roundtrip(api, auth, seeded):
+    """超过阈值的 JSON 响应启用 gzip；内容经解压后与未压缩请求一致。"""
+    plain = api.get(
+        "/api/v1/evidence/coverage",
+        headers={**auth["viewer"], "Accept-Encoding": "identity"},
+    )
+    assert plain.status_code == 200
+    assert plain.headers.get("content-encoding") is None, "声明 identity 时不应压缩"
+
+    gz = api.get(
+        "/api/v1/evidence/coverage",
+        headers={**auth["viewer"], "Accept-Encoding": "gzip"},
+    )
+    assert gz.status_code == 200
+    assert gz.headers.get("content-encoding") == "gzip"
+    assert gz.json() == plain.json(), "解压后内容必须与未压缩响应一致"
+
+
+def test_small_responses_not_gzipped(api, auth):
+    """小于 minimum_size 的响应不做压缩（避免负收益）。"""
+    resp = api.get("/api/v1/health", headers={"Accept-Encoding": "gzip"})
+    assert resp.status_code == 200
+    assert resp.headers.get("content-encoding") != "gzip"

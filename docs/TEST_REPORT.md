@@ -316,3 +316,29 @@ E2E 种子库按惯例重建（`rm data/e2e-v05.sqlite3 && CG_DATABASE_URL=… C
   （清除 Node 20 弃用告警）；
 - frontend job 新增 `npm run lint` 步骤；npm audit 步骤移除 `|| true`
   （依赖已清零，high+ 出现时应当真实失败）。
+
+## v0.6.3 维护记录（2026-09-16，响应压缩 + 小版本跟进，无功能变更）
+
+范围：API 与静态托管启用 gzip，跟进 vite 小版本，顺带核验了索引与查询匹配情况。
+基线 v0.6.2：后端 214 passed / 94.1%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **216 passed / 94.3%**（+2：gzip 压缩断言与阈值行为） |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **19 passed**（14.7s） |
+| `npm update vite`（8.2.2→8.3.0）+ build / lint / vitest | 通过，60 passed，npm audit 0 |
+| ruff check / format、secret_scan、module_graph | 全部通过 |
+
+### 响应压缩实测（2008 声明规模，GZipMiddleware minimum_size=1024）
+
+| 端点 | 原始 | 传输（gzip） | 比 |
+| --- | --- | --- | --- |
+| /events（100 条页） | 48,669 B | 8,257 B | **5.9×** |
+| /evidence/coverage | 1,342 B | 610 B | 2.2× |
+| /evidence/staleness | 978 B | 978 B | 未压缩（低于阈值，符合设计） |
+
+### 顺带核验（无需改动）
+
+- ORM 索引与热查询匹配完整（statements 的 subject/object/temporal 组合索引、
+  evidence 链路各外键索引均已存在）；
+- repo 层批量反查均为单条 IN 查询，无 N+1。
