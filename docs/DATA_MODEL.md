@@ -156,3 +156,14 @@ v0.5 起先产出全部实体批次再产出全部声明批次（同一事务内
 - **时效登记**是 v0.6 唯一写路径：POST /staleness/scan 把候选写为 `quality_issues`
   （rule_name=stale_source，payload 附 at/years/age_years/cutoff），幂等键 = 同声明已有
   open 的同名 issue 则 skip——复核通道复用 v0.5 既有表，不新增表。
+
+## v0.7 质量规则视图（无新增表）
+
+- **有效性**输入行 = `entity_identifiers`（namespace=uscc）投影，格式校验在应用层纯函数
+  完成（校验位算法复用 domain 层，存储层不判合法性）；
+- **唯一性 / 跨源一致性**输入行 = 时点有效声明（与覆盖率同一过滤口径）投影出
+  (statement_id, subject, predicate, object, connector_id, share_ratio_scaled)，
+  分组与冲突判定在应用层纯函数完成；比例比较用缩放整数，展示层经
+  `scaled_to_percent` 反解；
+- 均为派生只读视图，无新增表、无写入路径；候选"登记复核"仍写 v0.5 既有
+  `quality_issues` 表（本版未接写通道，规则候选仅呈现）。

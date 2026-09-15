@@ -13,12 +13,19 @@ from datetime import date
 from cg_capital_graph import (
     EVIDENCE_TIMELINE_ASSUMPTIONS,
     EVIDENCE_TIMELINE_VERSION,
+    QUALITY_ASSUMPTIONS,
+    QUALITY_VERSION,
     STALE_EVIDENCE_VERSION,
     CoverageYearRow,
     EvidenceFreshnessRow,
     EvidenceStatRow,
+    IdentifierRow,
+    StatementKeyRow,
     coverage_timeline,
+    cross_source_conflicts,
+    duplicate_statements,
     evidence_coverage,
+    identifier_validity,
     stale_evidence,
 )
 from fastapi import APIRouter, HTTPException, Query
@@ -123,6 +130,87 @@ async def evidence_lookup(
         "found": len(evidence),
         "missing_statement_ids": [sid for sid in wanted if sid not in evidence],
         "evidence": evidence,
+    }
+
+
+@router.get("/quality")
+async def evidence_quality_overview(
+    _user: ViewerUser,
+    repo: Repo,
+    at: date | None = None,
+    years: int = Query(5, ge=1, le=30),
+):
+    """质量总览（ADR-021）：覆盖率缺失 / 时效 / 有效性 / 唯一性 / 跨源一致性。
+
+    只呈现、不认定；各规则口径独立（见 assumptions）。时效维度与 /staleness 共用 years。
+    """
+    at_date = at or date.today()
+
+    stale = stale_evidence(
+        [
+            EvidenceFreshnessRow(
+                statement_id=r.statement_id,
+                subject_id=r.subject_id,
+                object_id=r.object_id,
+                predicate=r.predicate,
+                last_captured_at=r.last_captured_at,
+            )
+            for r in await repo.evidence_staleness_rows(at_date)
+        ],
+        at=at_date,
+        years=years,
+    )
+    coverage = evidence_coverage(
+        [
+            EvidenceStatRow(
+                statement_id=r.statement_id,
+                subject_id=r.subject_id,
+                object_id=r.object_id,
+                predicate=r.predicate,
+                connector_id=r.connector_id,
+                year=r.year,
+                has_evidence=r.has_evidence,
+            )
+            for r in await repo.evidence_coverage_rows(at_date)
+        ]
+    )
+    key_rows = [
+        StatementKeyRow(
+            statement_id=r.statement_id,
+            subject_id=r.subject_id,
+            object_id=r.object_id,
+            predicate=r.predicate,
+            connector_id=r.connector_id,
+            share_ratio_scaled=r.share_ratio_scaled,
+        )
+        for r in await repo.quality_statement_rows(at_date)
+    ]
+    validity = identifier_validity(
+        [
+            IdentifierRow(entity_id=r.entity_id, namespace=r.namespace, value=r.value)
+            for r in await repo.identifier_rows()
+        ]
+    )
+    uniqueness = duplicate_statements(key_rows)
+    consistency = cross_source_conflicts(key_rows)
+
+    counts = {
+        "coverage_missing": coverage["missing_statements"],
+        "staleness": stale["stale_count"],
+        "validity": validity["invalid_count"],
+        "uniqueness": uniqueness["group_count"],
+        "consistency": consistency["conflict_count"],
+    }
+    return {
+        "at": at_date.isoformat(),
+        "years": years,
+        "algorithm_version": QUALITY_VERSION,
+        "assumptions": QUALITY_ASSUMPTIONS,
+        "counts": counts,
+        "total_candidates": sum(counts.values()),
+        "validity": validity,
+        "uniqueness": uniqueness,
+        "consistency": consistency,
     }
 
 

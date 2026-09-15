@@ -314,3 +314,91 @@ def test_staleness_scan_validates_years(api, auth, seeded):
         ).status_code
         == 422
     )
+
+
+# ---------------------------------------- v0.7 质量规则族（ADR-021）
+
+
+def test_quality_requires_auth(api, seeded):
+    assert api.get("/api/v1/evidence/quality").status_code == 401
+
+
+def test_quality_overview_shape_and_known_counts(api, auth, seeded):
+    resp = api.get("/api/v1/evidence/quality", headers=auth["viewer"])
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["algorithm_version"].startswith("cg-evidence-quality/")
+    assert body["assumptions"]
+    # 五维度计数齐备，且与既有单规则端点同源同值
+    stale = api.get(
+        "/api/v1/evidence/staleness", params={"years": 5}, headers=auth["viewer"]
+    ).json()
+    cov = api.get("/api/v1/evidence/coverage", headers=auth["viewer"]).json()
+    assert body["counts"]["staleness"] == stale["stale_count"]
+    assert body["counts"]["coverage_missing"] == cov["missing_statements"]
+    assert body["total_candidates"] == sum(body["counts"].values())
+    # 合成库已知候选（seed=42 确定性）：转移场景同键两条 holds_shares 构成唯一性候选；
+    # USCC 全部合法；单连接器无跨源冲突
+    assert body["validity"]["checked"] > 0
+    assert body["validity"]["invalid_count"] == 0
+    assert body["uniqueness"]["group_count"] == 1
+    assert all(len(g["statement_ids"]) >= 2 for g in body["uniqueness"]["groups"])
+    assert body["consistency"]["conflict_count"] == 0
+
+
+def test_quality_catches_invalid_identifier(api, auth, seeded):
+    """直接注入一条校验位非法的 uscc 标识符，有效性规则必须捕获。"""
+    import os
+    import sqlite3
+
+    db_url = os.environ["CG_DATABASE_URL"]
+    db_path = db_url.split("///", 1)[1]
+    conn = sqlite3.connect(db_path)
+    try:
+        entity_id = conn.execute("SELECT id FROM entities LIMIT 1").fetchone()[0]
+        conn.execute(
+            "INSERT INTO entity_identifiers (id, entity_id, namespace, value, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
+            ("baduscc0000000000000000000000a", entity_id, "uscc", "91110000XXXXXXXXXX"),
+        )
+        conn.commit()
+        total = conn.execute(
+            "SELECT COUNT(*) FROM entity_identifiers WHERE namespace='uscc'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    body = api.get("/api/v1/evidence/quality", headers=auth["viewer"]).json()
+    assert body["validity"]["checked"] == total
+    assert {"entity_id": entity_id, "value": "91110000XXXXXXXXXX"} in body["validity"]["invalid"]
+
+
+def test_quality_uniqueness_flags_duplicate_statement(api, auth, seeded):
+    """注入同键第二条 active 声明（不同连接器、不同比例），唯一性与一致性同时捕获。"""
+    import os
+    import sqlite3
+
+    db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
+    conn = sqlite3.connect(db_path)
+    try:
+        sid, sub, obj, pred = conn.execute(
+            "SELECT id, subject_id, object_id, predicate FROM relationship_statements "
+            "WHERE status='active' LIMIT 1"
+        ).fetchone()
+        dup_id = "dupstmt0000000000000000000000a"
+        conn.execute(
+            "INSERT INTO relationship_statements "
+            "(id, subject_id, predicate, object_id, valid_from, status, connector_id, "
+            "share_ratio_scaled, recorded_at, claim_basis, confidence, source_url, note) "
+            "VALUES (?, ?, ?, ?, '2000-01-01', 'active', 'other-conn', 51000000, "
+            "datetime('now'), 'normalized', 1.0, 'internal://test', '')",
+            (dup_id, sub, pred, obj),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    body = api.get("/api/v1/evidence/quality", headers=auth["viewer"]).json()
+    assert body["uniqueness"]["group_count"] >= 1
+    groups = [g for g in body["uniqueness"]["groups"] if sid in g["statement_ids"]]
+    assert groups and dup_id in groups[0]["statement_ids"]
+    assert body["consistency"]["conflict_count"] >= 1

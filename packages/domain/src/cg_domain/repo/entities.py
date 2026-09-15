@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +15,15 @@ from cg_domain.enums import AliasType, EntityKind
 from cg_domain.models import EntityRecord
 from cg_domain.normalization import normalize_name
 from cg_domain.orm import Entity, EntityIdentifier, NameAlias, Security, Statement
+
+
+@dataclass(frozen=True)
+class QualityIdentifierRow:
+    """质量有效性规则输入行：标识符命名空间与原始值。"""
+
+    entity_id: str
+    namespace: str
+    value: str
 
 
 class EntityRepository:
@@ -192,6 +203,21 @@ class EntityRepository:
             select(NameAlias).where(NameAlias.entity_id == entity_id).order_by(NameAlias.name)
         )
         return list(rows.scalars().all())
+
+    async def identifier_rows(self, namespace: str | None = None) -> list[QualityIdentifierRow]:
+        """质量有效性规则输入行：全库标识符（可选按命名空间过滤）。"""
+        stmt = select(
+            EntityIdentifier.namespace, EntityIdentifier.value, EntityIdentifier.entity_id
+        )
+        if namespace is not None:
+            stmt = stmt.where(EntityIdentifier.namespace == namespace)
+        rows = await self.session.execute(
+            stmt.order_by(EntityIdentifier.namespace, EntityIdentifier.value)
+        )
+        return [
+            QualityIdentifierRow(entity_id=entity_id, namespace=ns, value=value)
+            for ns, value, entity_id in rows.all()
+        ]
 
     async def identifiers(self, entity_id: str) -> list[EntityIdentifier]:
         rows = await self.session.execute(

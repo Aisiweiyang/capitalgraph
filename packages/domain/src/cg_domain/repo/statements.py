@@ -75,6 +75,18 @@ class EvidenceCoverageRow:
 
 
 @dataclass(frozen=True)
+class QualityStatementRow:
+    """质量规则（唯一性/跨源一致性）输入行：时点有效声明的键与连接器来源。"""
+
+    statement_id: str
+    subject_id: str
+    object_id: str
+    predicate: str
+    connector_id: str
+    share_ratio_scaled: int | None
+
+
+@dataclass(frozen=True)
 class EvidenceStalenessRow:
     """证据时效规则输入行：时点有效且登记过证据的声明 + 快照最近取证时间。
 
@@ -410,6 +422,35 @@ class StatementRepository:
                 last_captured_at=fetched.date(),
             )
             for sid, sub, obj, pred, fetched in rows.all()
+        ]
+
+    async def quality_statement_rows(self, at: date | None = None) -> list[QualityStatementRow]:
+        """质量规则输入行：时点有效声明的键、连接器来源与比例（唯一性/一致性共用）。"""
+        at_date = at or date.today()
+        rows = await self.session.execute(
+            select(
+                Statement.id,
+                Statement.subject_id,
+                Statement.object_id,
+                Statement.predicate,
+                Statement.connector_id,
+                Statement.share_ratio_scaled,
+            ).where(
+                Statement.status == StatementStatus.ACTIVE.value,
+                Statement.valid_from <= at_date,
+                or_(Statement.valid_to.is_(None), Statement.valid_to > at_date),
+            )
+        )
+        return [
+            QualityStatementRow(
+                statement_id=sid,
+                subject_id=sub,
+                object_id=obj,
+                predicate=pred,
+                connector_id=conn,
+                share_ratio_scaled=ratio,
+            )
+            for sid, sub, obj, pred, conn, ratio in rows.all()
         ]
 
     async def statement_history(self, subject_id: str, object_id: str) -> list[Statement]:

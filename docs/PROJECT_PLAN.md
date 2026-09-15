@@ -125,3 +125,29 @@ CapitalGraph CN 改在独立子目录 `资本图谱/` 内实施（见 ADR-010）
       OSS_EVALUATION v0.6 增量）；趋势/时效结果全部标注"算法候选/只提示不认定"
 - [x] 文档同步：ADR-019/020、ARCHITECTURE、DATA_MODEL、OSS_EVALUATION、USER_GUIDE、
       TEST_REPORT（实测命令与结果 + 性能基线）、DELIVERY、README、PROJECT_PLAN v0.6 验收清单
+
+## v0.7 计划与验收清单（数据质量规则族）
+
+目标：在覆盖率与时效之外补齐有效性 / 唯一性 / 跨源一致性三条质量规则，
+五维度一处呈现，沿用"只提示、不认定"纪律（ADR-021）。
+
+| 切片 | 内容 | 状态 |
+| --- | --- | --- |
+| A 有效性 | identifier_validity 纯函数（uscc 校验位，复用 is_valid_uscc） | 完成 |
+| B 唯一性 | duplicate_statements 纯函数（同键并行 active 声明分组） | 完成 |
+| C 跨源一致性 | cross_source_conflicts 纯函数（多连接器比例冲突） | 完成 |
+| D 总览与看板 | GET /evidence/quality 五维度总览 + 工作台质量总览区 + E2E + 性能基线 | 完成 |
+
+验收清单（全部有实测证据，见 TEST_REPORT.md §v0.7）：
+
+- [x] 纯函数单测 7 项：仅核查 uscc 命名空间、排序确定性、同键并行分组、多源印证与
+      缺失不可比不进一致性规则、同连接器差异不进规则、输入序鲁棒
+- [x] API 集成测试 4 项：RBAC 401、五维度计数与既有单规则端点同源同值、
+      注入非法 uscc 被有效性捕获、注入同键异连接器声明被唯一性+一致性同时捕获
+- [x] repo 层 quality_statement_rows / identifier_rows（依赖方向：domain 不反向依赖
+      capital_graph，行类型定义在 domain，router 适配）
+- [x] 前端质量总览区（五计数卡 + 候选表/空态 + 一键反查 + 口径说明）；tsc/eslint 通过
+- [x] 既有测试不回归：E2E 19→20 项全绿；vitest 60 项全绿
+- [x] 性能基线（2008 声明：/evidence/quality p50 53.4ms / max 55.8ms，护栏 20s）
+- [x] 文档同步：ADR-021、ARCHITECTURE、DATA_MODEL、USER_GUIDE、TEST_REPORT、
+      DELIVERY、README、PROJECT_PLAN v0.7 验收清单

@@ -7,6 +7,7 @@ import {
   type EvidenceFragment,
   type EvidenceLookupOut,
   type EvidenceStalenessOut,
+  type EvidenceQualityOut,
 } from "../api";
 import { useAuth } from "../auth";
 import { EChart } from "../components/EChart";
@@ -27,6 +28,7 @@ export function EvidencePage() {
   const [coverage, setCoverage] = useState<EvidenceCoverageOut | null>(null);
   const [staleYears, setStaleYears] = useState(5);
   const [staleness, setStaleness] = useState<EvidenceStalenessOut | null>(null);
+  const [quality, setQuality] = useState<EvidenceQualityOut | null>(null);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [documents, setDocuments] = useState<EvidenceDocumentsOut | null>(null);
   const [lookup, setLookup] = useState<EvidenceLookupOut | null>(null);
@@ -50,6 +52,10 @@ export function EvidencePage() {
       .evidenceStaleness({ years: staleYears })
       .then(setStaleness)
       .catch(() => setStaleness(null));
+    api
+      .evidenceQuality({ years: staleYears })
+      .then(setQuality)
+      .catch(() => setQuality(null));
   }, [staleYears]);
 
   // deep-link：?statements=id1,id2 → 自动反查
@@ -211,6 +217,144 @@ export function EvidencePage() {
               暂无趋势数据。
             </div>
           )}
+        </section>
+      )}
+
+      {quality && (
+        <section className="panel" data-testid="quality-overview">
+          <h4>质量总览（五维度，{quality.algorithm_version}）</h4>
+          <p className="muted">
+            覆盖率缺失 / 时效 / 有效性 / 唯一性 / 跨源一致性五个维度各自独立计数，
+            只提示数据现状，不构成数据错误的认定。
+          </p>
+          <div className="stat-cards" data-testid="quality-counts">
+            <div className="stat-card">
+              <div className="stat-value">{quality.counts.coverage_missing}</div>
+              <div className="stat-label">覆盖率缺失</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{quality.counts.staleness}</div>
+              <div className="stat-label">时效候选</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{quality.counts.validity}</div>
+              <div className="stat-label">标识符无效</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{quality.counts.uniqueness}</div>
+              <div className="stat-label">疑似重复录入</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{quality.counts.consistency}</div>
+              <div className="stat-label">跨源取值冲突</div>
+            </div>
+          </div>
+          {quality.validity.invalid.length > 0 ? (
+            <table className="table compact" data-testid="quality-validity-table">
+              <thead>
+                <tr>
+                  <th>实体</th>
+                  <th>非法 uscc 标识符</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quality.validity.invalid.map((v) => (
+                  <tr key={v.entity_id + v.value}>
+                    <td>
+                      <Link to={`/entities/${v.entity_id}`}>{v.entity_id}</Link>
+                    </td>
+                    <td>{v.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="state-empty" data-testid="quality-validity-empty">
+              uscc 标识符校验位全部合法。
+            </div>
+          )}
+          {quality.uniqueness.groups.length > 0 ? (
+            <table className="table compact" data-testid="quality-uniqueness-table">
+              <thead>
+                <tr>
+                  <th>同键并行声明</th>
+                  <th>声明 ID</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {quality.uniqueness.groups.map((g) => (
+                  <tr key={g.subject_id + g.predicate + g.object_id}>
+                    <td>
+                      <Link to={`/entities/${g.subject_id}`}>主体</Link> →{" "}
+                      <Link to={`/entities/${g.object_id}`}>对象</Link>（{g.predicate}）
+                    </td>
+                    <td>{g.statement_ids.length} 条</td>
+                    <td>
+                      <button
+                        className="linklike"
+                        onClick={() => setQuery(g.statement_ids.join(","))}
+                      >
+                        反查
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="state-empty" data-testid="quality-uniqueness-empty">
+              未发现同键并行声明。
+            </div>
+          )}
+          {quality.consistency.conflicts.length > 0 ? (
+            <table className="table compact" data-testid="quality-consistency-table">
+              <thead>
+                <tr>
+                  <th>冲突事实</th>
+                  <th>各连接器取值</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {quality.consistency.conflicts.map((c) => (
+                  <tr key={c.subject_id + c.predicate + c.object_id}>
+                    <td>
+                      <Link to={`/entities/${c.subject_id}`}>主体</Link> →{" "}
+                      <Link to={`/entities/${c.object_id}`}>对象</Link>（{c.predicate}）
+                    </td>
+                    <td>
+                      {c.values
+                        .map((v) => `${v.connector_id}:${v.share_ratio ?? "—"}%`)
+                        .join(" / ")}
+                    </td>
+                    <td>
+                      <button
+                        className="linklike"
+                        onClick={() =>
+                          setQuery(c.values.map((v) => v.statement_id).join(","))
+                        }
+                      >
+                        反查
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="state-empty" data-testid="quality-consistency-empty">
+              未发现跨连接器取值冲突。
+            </div>
+          )}
+          <details className="assumptions">
+            <summary>口径说明（{quality.algorithm_version}）</summary>
+            <ul>
+              {quality.assumptions.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
+          </details>
         </section>
       )}
 

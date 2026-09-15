@@ -584,6 +584,43 @@ export interface StalenessScanOut {
   skipped: number;
   rule_name: string;
 }
+export interface EvidenceQualityOut {
+  at: string;
+  years: number;
+  algorithm_version: string;
+  assumptions: string[];
+  counts: {
+    coverage_missing: number;
+    staleness: number;
+    validity: number;
+    uniqueness: number;
+    consistency: number;
+  };
+  total_candidates: number;
+  validity: {
+    checked: number;
+    invalid_count: number;
+    invalid: { entity_id: string; value: string }[];
+  };
+  uniqueness: {
+    group_count: number;
+    groups: {
+      subject_id: string;
+      predicate: string;
+      object_id: string;
+      statement_ids: string[];
+    }[];
+  };
+  consistency: {
+    conflict_count: number;
+    conflicts: {
+      subject_id: string;
+      predicate: string;
+      object_id: string;
+      values: { connector_id: string; share_ratio: number | null; statement_id: string }[];
+    }[];
+  };
+}
 
 export const api = {
   login: (username: string, password: string) =>
@@ -715,6 +752,13 @@ export const api = {
     if (params.years != null) qs.set("years", String(params.years));
     const query = qs.toString();
     return request<EvidenceStalenessOut>(`/evidence/staleness${query ? `?${query}` : ""}`);
+  },
+
+  evidenceQuality: (params: { years?: number; at?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.years != null) qs.set("years", String(params.years));
+    if (params.at) qs.set("at", params.at);
+    return request<EvidenceQualityOut>(`/evidence/quality?${qs.toString()}`);
   },
 
   evidenceStalenessScan: (params: { at?: string; years?: number } = {}) => {

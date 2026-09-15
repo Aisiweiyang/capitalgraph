@@ -188,3 +188,19 @@ join 实体名 → 分页返回（附 counts_by_type 与口径说明）。
 鉴权/RBAC → 仓储按 max(snapshot.fetched_at) 聚合声明证据新鲜度（EvidenceFreshnessRow）→
 `cg_capital_graph.stale_evidence` 纯函数过滤 → 逐候选幂等登记 QualityIssue → 写审计 →
 返回 created/skipped 计数。
+
+## v0.7 数据质量规则族
+
+在覆盖率与时效之外，把质量维度补成三类规则，仍为只读呈现、不产生认定（ADR-021）：
+
+- **有效性**：uscc 命名空间标识符按 GB 32100-2015 校验位核查（复用 domain 层
+  `is_valid_uscc`），非法者列为候选；其他命名空间不核查不计数；
+- **唯一性**：同键并行 active 声明 > 1 → 疑似重复录入组（时点过滤，superseded 历史不进）；
+- **跨源一致性**：同键多连接器且比例均给出但不一致 → 冲突候选；缺失显式不可比，
+  多源一致是多源印证而非冲突；
+- **总览**：GET /evidence/quality 汇五维度计数与候选，前端证据工作台"质量总览"区
+  一次呈现（五计数卡 + 候选表/空态 + 口径说明），候选行一键反查证据链。
+
+请求链路示例：`web` → `GET /api/v1/evidence/quality?years=5` → 鉴权/RBAC → 四次只读扫描
+（覆盖率行 / 时效行 / 声明键行 / 标识符行）→ `cg_capital_graph` 质量纯函数过滤 →
+五维度计数与候选返回。
