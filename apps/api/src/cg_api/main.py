@@ -173,7 +173,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
-        # 不向客户端泄露堆栈与内部路径（提示词 §7）
+        # 不向客户端泄露堆栈与内部路径（安全测试 §7 口径）
         logger.error("unhandled error on %s: %s", request.url.path, type(exc).__name__)
         return JSONResponse(status_code=500, content={"detail": "服务器内部错误"})
 

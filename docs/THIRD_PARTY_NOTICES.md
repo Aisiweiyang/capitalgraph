@@ -3,7 +3,7 @@
 运行时第三方库清单以 `docs/SBOM.cdx.json` 为准（生成脚本 `scripts/sbom.py`）。以下为主要组件及其许可证。
 
 - [cytoscape](https://github.com/cytoscape/cytoscape.js) — MIT — 关系网络图可视化
-- [echarts](https://github.com/apache/echarts) — Apache-2.0 — 统计图表与中国地图（v5.6，含内置 GeoJSON 来源见 apps/web/src/assets/MAP_DATA_SOURCE.md）
+- [echarts](https://github.com/apache/echarts) — Apache-2.0 — 统计图表与中国地图（v6.1，含内置 GeoJSON 来源见 apps/web/src/assets/MAP_DATA_SOURCE.md）
 
 ## Python 运行时依赖（uv.lock 锁定）
 
@@ -25,7 +25,7 @@
 
 | 组件 | 许可证 | 用途 |
 | --- | --- | --- |
-| cytoscape | MIT | 交互式网络图（提示词 §3 指定采用） |
+| cytoscape | MIT | 交互式网络图（v0.3 选型采用） |
 | react / react-dom | MIT | UI 框架 |
 | react-router-dom | MIT | 路由 |
 

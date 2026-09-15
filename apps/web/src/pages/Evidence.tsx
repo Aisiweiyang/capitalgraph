@@ -7,7 +7,6 @@ import {
   type EvidenceFragment,
   type EvidenceLookupOut,
   type EvidenceStalenessOut,
-  type EvidenceTimelineOut,
 } from "../api";
 import { useAuth } from "../auth";
 import { EChart } from "../components/EChart";
@@ -26,7 +25,6 @@ export function EvidencePage() {
   const [params, setParams] = useSearchParams();
   const deepLink = params.get("statements") ?? "";
   const [coverage, setCoverage] = useState<EvidenceCoverageOut | null>(null);
-  const [timeline, setTimeline] = useState<EvidenceTimelineOut | null>(null);
   const [staleYears, setStaleYears] = useState(5);
   const [staleness, setStaleness] = useState<EvidenceStalenessOut | null>(null);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
@@ -41,10 +39,6 @@ export function EvidencePage() {
       .evidenceCoverage()
       .then(setCoverage)
       .catch((err: Error) => setError(err.message));
-    api
-      .evidenceCoverageTimeline()
-      .then(setTimeline)
-      .catch(() => setTimeline(null));
     api
       .evidenceDocuments()
       .then(setDocuments)
@@ -180,13 +174,13 @@ export function EvidencePage() {
         </>
       )}
 
-      {timeline && (
+      {coverage && (
         <section className="panel">
-          <h4>覆盖率趋势（按声明生效年度，{timeline.algorithm_version}）</h4>
-          {timeline.timeline.length > 0 ? (
+          <h4>覆盖率趋势（按声明生效年度，{coverage.algorithm_version}）</h4>
+          {coverage.timeline.length > 0 ? (
             <>
               <EChart
-                option={coverageTimelineOption(timeline.timeline)}
+                option={coverageTimelineOption(coverage.timeline)}
                 className="evidence-trend"
               />
               <table className="table compact" data-testid="coverage-timeline-table">
@@ -200,7 +194,7 @@ export function EvidencePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {timeline.timeline.map((r) => (
+                  {coverage.timeline.map((r) => (
                     <tr key={r.year}>
                       <td>{r.year}</td>
                       <td>{r.total}</td>

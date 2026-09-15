@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * 核心链路 E2E（提示词 §9.6）：
+ * 核心链路 E2E：
  * 导入演示数据(脚本预置) -> 检索企业 -> 打开详情 -> 穿透图 -> 来源证据 -> 时间点切换 -> 导出
  * 登录态由 setup 项目（auth.setup.ts）通过 API 预置。
  */

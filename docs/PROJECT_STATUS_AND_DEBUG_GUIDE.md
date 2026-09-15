@@ -225,8 +225,9 @@ uvx bandit -q -r packages apps/api/src workers/src   # SAST
 4. 前端 `npm run lint` 需要 eslint 可执行文件（devDependencies 未含 eslint，CI 也不跑 lint），可忽略。
 5. 交叉持股环 C0↔C1 为 30%/25%，低于系族默认阈值 50%，默认不并族（口径见后续 ADR-016）。
 
-## 8. v0.4 剩余工作与续跑方法
+## 8. 新会话续跑方法
 
-剩余顺序：切片B 后半（repo → /risk API → CSV → 前端）→ 切片C 回放 → 切片D 报告导出 → 全量验证（pytest --cov / vitest / build / playwright / module_graph / bandit / secret_scan）→ 文档同步（PROJECT_PLAN、DECISIONS ADR-015/016、ARCHITECTURE、DATA_MODEL、OSS_EVALUATION、USER_GUIDE、TEST_REPORT、DELIVERY、README）→ 提交推送 → 确认 CI 绿。
-
-新会话续跑可直接使用任务提示词文末的「中断续跑提示词」：先读 `docs/PROJECT_PLAN.md`、`docs/DECISIONS.md`、`docs/TEST_REPORT.md` 与 `git log`，跑 `uv run pytest tests -q` 与 `uv run python scripts/module_graph.py` 做最小状态检查，从第一个未完成切片继续。
+接续未完成的开发轮次时：先读 `docs/PROJECT_PLAN.md`（当轮验收清单）、`docs/DECISIONS.md`
+与 `docs/TEST_REPORT.md`（已实测结论），结合 `git log` / `git status` 确认工作区状态；
+跑 `uv run pytest tests -q` 与 `uv run python scripts/module_graph.py` 做最小状态检查，
+从验收清单第一个未完成项继续。

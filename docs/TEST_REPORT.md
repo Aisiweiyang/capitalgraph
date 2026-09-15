@@ -79,8 +79,7 @@ cd apps/web && npm install && npm run dev
 3. 检索为规范化包含匹配，无中文分词（ADR-003 触发条件后再引入专用搜索）。
 4. 图计算单进程内存受 `max_nodes` 护栏约束；超大规模需按 ADR-002 撤销条件引入投影缓存。
 5. 交叉持股检测在节点集上有界（500/200 对），超出部分不承诺完整（THREAT_MODEL/DELIVERY 双记录）。
-6. 首版未做：舆情/回测/真实交易（提示词范围外）；预留 `Security` 与事件标识接口。
-7. 本会话未接入 DeepSeek 工具（ADR-008），全部代码由 ZCode 实现并自测。
+6. 首版未做：舆情/回测/真实交易（首版范围外）；预留 `Security` 与事件标识接口。
 
 ## v0.4 实测记录（2026-09-13，Windows 11 本机）
 
@@ -265,3 +264,26 @@ E2E 种子库按惯例重建（`rm data/e2e-v05.sqlite3 && CG_DATABASE_URL=… C
 2. 覆盖率趋势按生效年度分组，年度差值不构成质量改进/恶化的认定（声明集合随时点变化）。
 3. 报告证据表上限 1000 条（分批收集），覆盖率摘要与陈旧标注获取失败均降级省略。
 4. E2E 用例增多后需提高 E2E 后端限流限额（见 USER_GUIDE §9），生产限流策略不变。
+
+## v0.6.1 维护记录（2026-09-16，依赖更新与去过程化整理，无功能变更）
+
+范围：前端依赖安全升级、Python 锁文件升级、证据工作台请求合并、开发过程档案移出仓库。
+基线 v0.6：后端 203 passed / 92.7%，前端 60 passed，E2E 19 passed。
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm install echarts@^6.1.0 react-router-dom@^7.18.4`（apps/web） | echarts 5.6→6.1（修 XSS 公告 GHSA-fgmj-fm8m-jvvx）、react-router-dom 6.30→7.18（修 GHSA-wrjc-x8rr-h8h6 等 2 项），`npm audit` **0 vulnerabilities**（此前 3 moderate）；tsc 与 vitest 60 passed 零改动通过，E2E 19 passed 验证路由行为 |
+| `npm install -D jsdom@^30.0.1 @testing-library/jest-dom@^7.0.1` | 开发依赖跟上当前主版本，60 passed |
+| `uv lock --upgrade && uv sync` | greenlet/pyjwt/ruff/sqlalchemy/uvicorn 小版本升级，全量后端复跑通过 |
+| `uvx pip-audit` | No known vulnerabilities |
+| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **204 passed / 92.7%**（+1：/coverage 内嵌 timeline 一致性测试） |
+| `cd apps/web && npx tsc -b && npm run build` | 通过；vendor-echarts 懒加载块 627.66→668.06 KB（gzip 205.46→222.74），首屏 176.37→191.28 KB（gzip 58.16→63.35），为安全版本代价；仍按页懒加载 |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **19 passed**（12.6s） |
+| ruff check / format、secret_scan、module_graph | 全部通过 |
+
+### 请求合并（一处小的性能整理）
+
+证据工作台原来挂载时发 4 个请求，其中 /evidence/coverage 与 /evidence/coverage/timeline
+在服务端是同一次声明扫描跑两遍。现 /coverage 响应附带 timeline 字段（同一次扫描顺带
+产出，加法式变更），前端改为一次请求同时渲染覆盖率与趋势；独立端点 /coverage/timeline
+保留（一致性有测试断言）。

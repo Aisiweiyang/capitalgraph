@@ -211,6 +211,14 @@ def test_coverage_timeline_at_filter(api, auth, seeded):
     assert {r["year"]: r["total"] for r in tl} == {g["key"]: g["total"] for g in cov21["by_year"]}
 
 
+def test_coverage_embeds_timeline_matching_standalone(api, auth, seeded):
+    """v0.6.1：/coverage 与统计共用同一次扫描附带 timeline，减少工作台重复请求。"""
+    cov = api.get("/api/v1/evidence/coverage", headers=auth["viewer"])
+    assert cov.status_code == 200
+    tl_only = api.get("/api/v1/evidence/coverage/timeline", headers=auth["viewer"]).json()
+    assert cov.json()["timeline"] == tl_only["timeline"]
+
+
 # ---------------------------------------- v0.6 切片 B：证据时效规则（ADR-020）
 
 

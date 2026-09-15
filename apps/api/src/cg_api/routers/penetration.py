@@ -24,7 +24,7 @@ from cg_api.deps import Repo
 
 router = APIRouter(prefix="/penetration", tags=["穿透"])
 
-# 服务端硬上限：拒绝放宽超过护栏的请求（提示词 §5）
+# 服务端硬上限：拒绝放宽超过护栏的请求（立项硬约束）
 _HARD_LIMITS = {"max_depth": 12, "max_paths": 100000, "max_nodes": 1000000, "timeout_seconds": 60.0}
 
 

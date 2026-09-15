@@ -37,7 +37,11 @@ async def evidence_coverage_stats(
     repo: Repo,
     at: date | None = None,
 ):
-    """声明证据覆盖率：总体 + 按谓词/连接器/年度分组 + 缺失样本清单（只呈现，不修复）。"""
+    """声明证据覆盖率：总体 + 按谓词/连接器/年度分组 + 缺失样本清单（只呈现，不修复）。
+
+    附带 timeline（ADR-019 年度趋势行）：与统计共用同一次声明扫描，证据工作台
+    一次请求即可同时渲染覆盖率与趋势；独立端点 /coverage/timeline 保留。
+    """
     rows = await repo.evidence_coverage_rows(at)
     stats = evidence_coverage(
         [
@@ -54,6 +58,14 @@ async def evidence_coverage_stats(
         ]
     )
     stats["at"] = at.isoformat() if at else None
+    by_year: dict[int, list[int]] = defaultdict(lambda: [0, 0])  # year -> [total, covered]
+    for r in rows:
+        by_year[r.year][0] += 1
+        if r.has_evidence:
+            by_year[r.year][1] += 1
+    stats["timeline"] = coverage_timeline(
+        [CoverageYearRow(year=y, total=t, covered=c) for y, (t, c) in by_year.items()]
+    )
     return stats
 
 

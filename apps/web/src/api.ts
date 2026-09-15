@@ -495,6 +495,8 @@ export interface EvidenceCoverageOut {
     connector_id: string;
     year: number;
   }[];
+  /** 年度趋势行（ADR-019），服务端与覆盖率统计共用同一次扫描（/coverage/timeline 的行）。 */
+  timeline: CoverageTimelineRow[];
   assumptions: string[];
 }
 

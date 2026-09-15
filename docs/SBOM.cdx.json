@@ -1,9 +1,5 @@
-{
-  "bomFormat": "CycloneDX",
-  "specVersion": "1.5",
-  "version": 1,
-  "metadata": {
-    "component": {
+SBOM 写入 C:\Users\Asus\Desktop\谎言编织现世\资本图谱\docs\SBOM.cdx.json：99 个组件
+nent": {
       "type": "application",
       "name": "capitalgraph",
       "version": "0.1.0",
@@ -15,14 +11,20 @@
         "name": "scripts/sbom.py"
       }
     ],
-    "timestamp": "2026-09-11T17:13:10.141184+00:00"
+    "timestamp": "2026-09-15T16:34:42.556639+00:00"
   },
   "components": [
     {
       "type": "library",
       "name": "@asamuzakjp/css-color",
-      "version": "3.2.0",
-      "purl": "pkg:npm/@asamuzakjp/css-color@3.2.0"
+      "version": "6.0.7",
+      "purl": "pkg:npm/@asamuzakjp/css-color@6.0.7"
+    },
+    {
+      "type": "library",
+      "name": "@asamuzakjp/dom-selector",
+      "version": "8.3.2",
+      "purl": "pkg:npm/@asamuzakjp/dom-selector@8.3.2"
     },
     {
       "type": "library",
@@ -32,9 +34,15 @@
     },
     {
       "type": "library",
+      "name": "@bramus/specificity",
+      "version": "2.4.2",
+      "purl": "pkg:npm/@bramus/specificity@2.4.2"
+    },
+    {
+      "type": "library",
       "name": "@csstools/css-color-parser",
-      "version": "3.1.0",
-      "purl": "pkg:npm/@csstools/css-color-parser@3.1.0"
+      "version": "4.2.3",
+      "purl": "pkg:npm/@csstools/css-color-parser@4.2.3"
     },
     {
       "type": "library",
@@ -57,8 +65,8 @@
     {
       "type": "library",
       "name": "@testing-library/jest-dom",
-      "version": "6.9.1",
-      "purl": "pkg:npm/@testing-library/jest-dom@6.9.1"
+      "version": "7.0.1",
+      "purl": "pkg:npm/@testing-library/jest-dom@7.0.1"
     },
     {
       "type": "library",
@@ -98,57 +106,33 @@
     },
     {
       "type": "library",
-      "name": "call-bind-apply-helpers",
-      "version": "1.0.2",
-      "purl": "pkg:npm/call-bind-apply-helpers@1.0.2"
+      "name": "bidi-js",
+      "version": "1.1.0",
+      "purl": "pkg:npm/bidi-js@1.1.0"
     },
     {
       "type": "library",
-      "name": "combined-stream",
-      "version": "1.0.8",
-      "purl": "pkg:npm/combined-stream@1.0.8"
+      "name": "css-tree",
+      "version": "3.2.1",
+      "purl": "pkg:npm/css-tree@3.2.1"
     },
     {
       "type": "library",
-      "name": "cssstyle",
-      "version": "4.6.0",
-      "purl": "pkg:npm/cssstyle@4.6.0"
+      "name": "data-urls/node_modules/whatwg-url",
+      "version": "16.0.1",
+      "purl": "pkg:npm/data-urls/node_modules/whatwg-url@16.0.1"
     },
     {
       "type": "library",
       "name": "data-urls",
-      "version": "5.0.0",
-      "purl": "pkg:npm/data-urls@5.0.0"
-    },
-    {
-      "type": "library",
-      "name": "debug",
-      "version": "4.4.3",
-      "purl": "pkg:npm/debug@4.4.3"
-    },
-    {
-      "type": "library",
-      "name": "dunder-proto",
-      "version": "1.0.1",
-      "purl": "pkg:npm/dunder-proto@1.0.1"
+      "version": "7.0.0",
+      "purl": "pkg:npm/data-urls@7.0.0"
     },
     {
       "type": "library",
       "name": "echarts",
-      "version": "5.6.0",
-      "purl": "pkg:npm/echarts@5.6.0"
-    },
-    {
-      "type": "library",
-      "name": "es-object-atoms",
-      "version": "1.1.2",
-      "purl": "pkg:npm/es-object-atoms@1.1.2"
-    },
-    {
-      "type": "library",
-      "name": "es-set-tostringtag",
-      "version": "2.1.0",
-      "purl": "pkg:npm/es-set-tostringtag@2.1.0"
+      "version": "6.1.0",
+      "purl": "pkg:npm/echarts@6.1.0"
     },
     {
       "type": "library",
@@ -158,63 +142,15 @@
     },
     {
       "type": "library",
-      "name": "form-data",
-      "version": "4.0.6",
-      "purl": "pkg:npm/form-data@4.0.6"
-    },
-    {
-      "type": "library",
-      "name": "get-intrinsic",
-      "version": "1.3.0",
-      "purl": "pkg:npm/get-intrinsic@1.3.0"
-    },
-    {
-      "type": "library",
-      "name": "get-proto",
-      "version": "1.0.1",
-      "purl": "pkg:npm/get-proto@1.0.1"
-    },
-    {
-      "type": "library",
-      "name": "has-tostringtag",
-      "version": "1.0.2",
-      "purl": "pkg:npm/has-tostringtag@1.0.2"
-    },
-    {
-      "type": "library",
-      "name": "hasown",
-      "version": "2.0.4",
-      "purl": "pkg:npm/hasown@2.0.4"
-    },
-    {
-      "type": "library",
       "name": "html-encoding-sniffer",
-      "version": "4.0.0",
-      "purl": "pkg:npm/html-encoding-sniffer@4.0.0"
-    },
-    {
-      "type": "library",
-      "name": "http-proxy-agent",
-      "version": "7.0.2",
-      "purl": "pkg:npm/http-proxy-agent@7.0.2"
-    },
-    {
-      "type": "library",
-      "name": "https-proxy-agent",
-      "version": "7.0.6",
-      "purl": "pkg:npm/https-proxy-agent@7.0.6"
-    },
-    {
-      "type": "library",
-      "name": "iconv-lite",
-      "version": "0.6.3",
-      "purl": "pkg:npm/iconv-lite@0.6.3"
+      "version": "6.0.0",
+      "purl": "pkg:npm/html-encoding-sniffer@6.0.0"
     },
     {
       "type": "library",
       "name": "jsdom",
-      "version": "24.1.3",
-      "purl": "pkg:npm/jsdom@24.1.3"
+      "version": "30.0.1",
+      "purl": "pkg:npm/jsdom@30.0.1"
     },
     {
       "type": "library",
@@ -236,15 +172,9 @@
     },
     {
       "type": "library",
-      "name": "mime-types",
-      "version": "2.1.35",
-      "purl": "pkg:npm/mime-types@2.1.35"
-    },
-    {
-      "type": "library",
       "name": "parse5",
-      "version": "7.3.0",
-      "purl": "pkg:npm/parse5@7.3.0"
+      "version": "8.0.1",
+      "purl": "pkg:npm/parse5@8.0.1"
     },
     {
       "type": "library",
@@ -266,12 +196,6 @@
     },
     {
       "type": "library",
-      "name": "psl",
-      "version": "1.15.0",
-      "purl": "pkg:npm/psl@1.15.0"
-    },
-    {
-      "type": "library",
       "name": "react-dom",
       "version": "18.3.1",
       "purl": "pkg:npm/react-dom@18.3.1"
@@ -279,14 +203,14 @@
     {
       "type": "library",
       "name": "react-router-dom",
-      "version": "6.30.6",
-      "purl": "pkg:npm/react-router-dom@6.30.6"
+      "version": "7.18.4",
+      "purl": "pkg:npm/react-router-dom@7.18.4"
     },
     {
       "type": "library",
       "name": "react-router",
-      "version": "6.30.6",
-      "purl": "pkg:npm/react-router@6.30.6"
+      "version": "7.18.4",
+      "purl": "pkg:npm/react-router@7.18.4"
     },
     {
       "type": "library",
@@ -332,21 +256,21 @@
     },
     {
       "type": "library",
+      "name": "tldts",
+      "version": "7.4.13",
+      "purl": "pkg:npm/tldts@7.4.13"
+    },
+    {
+      "type": "library",
       "name": "tough-cookie",
-      "version": "4.1.4",
-      "purl": "pkg:npm/tough-cookie@4.1.4"
+      "version": "6.0.2",
+      "purl": "pkg:npm/tough-cookie@6.0.2"
     },
     {
       "type": "library",
       "name": "tr46",
-      "version": "5.1.1",
-      "purl": "pkg:npm/tr46@5.1.1"
-    },
-    {
-      "type": "library",
-      "name": "url-parse",
-      "version": "1.5.10",
-      "purl": "pkg:npm/url-parse@1.5.10"
+      "version": "6.0.0",
+      "purl": "pkg:npm/tr46@6.0.0"
     },
     {
       "type": "library",
@@ -368,15 +292,9 @@
     },
     {
       "type": "library",
-      "name": "whatwg-encoding",
-      "version": "3.1.1",
-      "purl": "pkg:npm/whatwg-encoding@3.1.1"
-    },
-    {
-      "type": "library",
       "name": "whatwg-url",
-      "version": "14.2.0",
-      "purl": "pkg:npm/whatwg-url@14.2.0"
+      "version": "17.1.1",
+      "purl": "pkg:npm/whatwg-url@17.1.1"
     },
     {
       "type": "library",
@@ -387,8 +305,8 @@
     {
       "type": "library",
       "name": "zrender",
-      "version": "5.6.1",
-      "purl": "pkg:npm/zrender@5.6.1"
+      "version": "6.1.0",
+      "purl": "pkg:npm/zrender@6.1.0"
     },
     {
       "type": "library",
@@ -399,8 +317,8 @@
     {
       "type": "library",
       "name": "alembic",
-      "version": "1.19.2",
-      "purl": "pkg:pypi/alembic@1.19.2"
+      "version": "1.20.0",
+      "purl": "pkg:pypi/alembic@1.20.0"
     },
     {
       "type": "library",
@@ -435,8 +353,8 @@
     {
       "type": "library",
       "name": "ast-serialize",
-      "version": "0.10.0",
-      "purl": "pkg:pypi/ast-serialize@0.10.0"
+      "version": "0.11.2",
+      "purl": "pkg:pypi/ast-serialize@0.11.2"
     },
     {
       "type": "library",
@@ -465,8 +383,8 @@
     {
       "type": "library",
       "name": "coverage",
-      "version": "7.16.0",
-      "purl": "pkg:pypi/coverage@7.16.0"
+      "version": "7.16.1",
+      "purl": "pkg:pypi/coverage@7.16.1"
     },
     {
       "type": "library",
@@ -477,8 +395,8 @@
     {
       "type": "library",
       "name": "greenlet",
-      "version": "3.5.5",
-      "purl": "pkg:pypi/greenlet@3.5.5"
+      "version": "3.5.6",
+      "purl": "pkg:pypi/greenlet@3.5.6"
     },
     {
       "type": "library",
@@ -603,8 +521,8 @@
     {
       "type": "library",
       "name": "pyjwt",
-      "version": "2.13.0",
-      "purl": "pkg:pypi/pyjwt@2.13.0"
+      "version": "2.14.0",
+      "purl": "pkg:pypi/pyjwt@2.14.0"
     },
     {
       "type": "library",
@@ -639,14 +557,14 @@
     {
       "type": "library",
       "name": "ruff",
-      "version": "0.16.6",
-      "purl": "pkg:pypi/ruff@0.16.6"
+      "version": "0.16.7",
+      "purl": "pkg:pypi/ruff@0.16.7"
     },
     {
       "type": "library",
       "name": "sqlalchemy",
-      "version": "2.0.52",
-      "purl": "pkg:pypi/sqlalchemy@2.0.52"
+      "version": "2.0.53",
+      "purl": "pkg:pypi/sqlalchemy@2.0.53"
     },
     {
       "type": "library",
@@ -669,8 +587,8 @@
     {
       "type": "library",
       "name": "uvicorn",
-      "version": "0.52.4",
-      "purl": "pkg:pypi/uvicorn@0.52.4"
+      "version": "0.53.0",
+      "purl": "pkg:pypi/uvicorn@0.53.0"
     },
     {
       "type": "library",

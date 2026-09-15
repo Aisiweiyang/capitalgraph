@@ -171,7 +171,8 @@ join 实体名 → 分页返回（附 counts_by_type 与口径说明）。
 - **覆盖率趋势（cg-evidence-timeline 纯函数）**：GET /evidence/coverage/timeline 复用
   /coverage 的时点过滤与证据存在性口径，按声明 valid_from 年度分组，输出逐年
   total/covered/missing/coverage_percent 与 delta_vs_prev（首年或前序年度无定义为 None）；
-  前端趋势区以 ECharts 柱线图 + 逐年表格呈现；
+  前端趋势区以 ECharts 柱线图 + 逐年表格呈现。/coverage 响应附带同源 timeline 行，
+  工作台一次请求同时取覆盖率与趋势（v0.6.1）；
 - **证据时效（cg-evidence-staleness 纯函数）**：声明证据快照最近取证时间（多快照取 max）
   早于 at − years 年（默认 5，可配 1–30）→ 列为时效候选；恰好等于阈值不算陈旧；
   无证据声明不进本规则（归覆盖率缺失通道）；
