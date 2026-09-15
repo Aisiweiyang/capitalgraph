@@ -207,3 +207,13 @@ OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
 
 实测：后端 204 passed / 92.7%，vitest 60，E2E 19，npm audit / pip-audit / bandit
 级别扫描全部通过。详见 TEST_REPORT §v0.6.1。
+
+## v0.6.2 维护交付（2026-09-16）：lint 工程拉活 + CI 现代化 + 测试补强
+
+- 前端 ESLint 自 flat config 起真正可运行（此前 lint 脚本引用未安装的依赖），CI
+  frontend job 接入；现存告警均为已确认的模式性提示（挂载取数、组件文件导出常量）。
+- CI actions 全部升级到当前主版本（checkout v7 / setup-node v7 / setup-uv v10），
+  清除 Node 20 弃用告警；npm audit 在依赖清零后移除永真兜底，high+ 出现即失败。
+- 补齐覆盖率最低两块的单元测试（实体解析打分边界 8 项、种子幂等 2 项），并修复
+  seed 模块显式参数被环境变量静默压制的缺陷。后端 214 passed / **94.1%**
+  （92.7% → 94.1%），vitest 60，E2E 19，静态检查全过。详见 TEST_REPORT §v0.6.2。

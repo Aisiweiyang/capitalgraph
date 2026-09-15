@@ -9,8 +9,8 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with:
           python-version: "3.12"
       - name: 安装依赖
@@ -43,12 +43,14 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm ci
+      - name: Lint（eslint）
+        run: npm run lint
       - run: npm run build
       - run: npm test
-      - name: npm audit（允许存在开发链路 moderate，失败于 high+）
-        run: npm audit --audit-level=high || true
+      - name: npm audit（依赖已清零，失败于 high+）
+        run: npm audit --audit-level=high

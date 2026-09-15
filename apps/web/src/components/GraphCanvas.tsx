@@ -211,6 +211,8 @@ export function GraphCanvas({
       cy.destroy();
       cyRef.current = null;
     };
+    // handlesRef 是父级持有的句柄容器，挂载时绑定一次即可（同 EChart.tsx）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, maxDepth, onNodeOpen]);
 
   return (

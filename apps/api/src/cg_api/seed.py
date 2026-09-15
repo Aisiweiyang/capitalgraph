@@ -25,8 +25,9 @@ DEMO_USERS = [
 async def seed(
     database_url: str | None = None, *, entities: int = 40, seed_value: str = "42"
 ) -> dict:
-    os.environ.setdefault(
-        "CG_DATABASE_URL", database_url or "sqlite+aiosqlite:///./data/capitalgraph.sqlite3"
+    # 显式参数优先于环境变量；两者都缺省才落到默认库
+    os.environ["CG_DATABASE_URL"] = database_url or os.environ.get(
+        "CG_DATABASE_URL", "sqlite+aiosqlite:///./data/capitalgraph.sqlite3"
     )
     from cg_domain.db import make_engine
 

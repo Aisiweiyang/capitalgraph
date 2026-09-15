@@ -287,3 +287,32 @@ E2E 种子库按惯例重建（`rm data/e2e-v05.sqlite3 && CG_DATABASE_URL=… C
 在服务端是同一次声明扫描跑两遍。现 /coverage 响应附带 timeline 字段（同一次扫描顺带
 产出，加法式变更），前端改为一次请求同时渲染覆盖率与趋势；独立端点 /coverage/timeline
 保留（一致性有测试断言）。
+
+## v0.6.2 维护记录（2026-09-16，前端 lint 工程 + CI 现代化 + 补测试，无功能变更）
+
+范围：把一直处于损坏状态的 `npm run lint` 修活并接入 CI，升级 CI actions 版本，
+为覆盖率最低的两个模块补齐单元测试。基线 v0.6.1：后端 204 passed / 92.7%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm run lint`（新增 eslint.config.js + devDependencies） | **0 errors / 18 warnings**（均为已知模式：挂载取数触发 set-state-in-effect 提示、组件文件导出常量的 fast-refresh 提示），脚本此前引用未安装的 eslint，从未真正可运行 |
+| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **214 passed / 94.1%**（+10 项：scoring 边界 8、seed 幂等 2；覆盖率 92.7% → 94.1%，seed.py 0% → 全覆盖，scoring.py 80.4% → 全覆盖） |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **19 passed**（17.1s） |
+| `cd apps/web && npx tsc -b && npm run build && npx vitest run` | 通过，60 passed |
+| ruff check / format、secret_scan、module_graph | 全部通过 |
+
+### 新增测试
+
+- `tests/entity_resolution/test_scoring.py`（8 项）：单一标识符只进复核带（0.60 < 0.90）、
+  标识符 + 佐证恰好 0.90 判 merge、短名分支与完全一致互斥、相似度 0.85 入分/0.84 不入、
+  无标识符的满分仍只复核、权重和截断到 1.0、自定义阈值边界（≥ 语义）、确定性；
+- `tests/api/test_seed.py`（2 项）：种子幂等（二次执行三计数均零）、显式 database_url
+  优先于环境变量（本轮修复：原先 `setdefault` 会静默忽略显式参数，环境变量已存在时
+  种子可能写错库）。
+
+### CI 变更
+
+- actions/checkout v4→v7、actions/setup-node v4→v7、astral-sh/setup-uv v5→v10
+  （清除 Node 20 弃用告警）；
+- frontend job 新增 `npm run lint` 步骤；npm audit 步骤移除 `|| true`
+  （依赖已清零，high+ 出现时应当真实失败）。
