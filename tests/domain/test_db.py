@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cg_domain.db import default_database_url, make_engine
+from cg_domain.db import default_database_url
 from cg_domain.normalization import is_valid_uscc, normalize_name
 
 
