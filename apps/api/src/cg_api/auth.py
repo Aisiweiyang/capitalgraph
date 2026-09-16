@@ -20,7 +20,13 @@ from cg_domain.orm import User
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-_hasher = PasswordHasher()
+# 成本参数可经环境变量覆盖（默认与 argon2-cffi 库默认一致）；测试套件用低档位换速度，
+# 校验不受影响：argon2 编码串自带参数，verify 按哈希串内的参数执行
+_hasher = PasswordHasher(
+    time_cost=int(os.environ.get("CG_ARGON2_TIME_COST", "3")),
+    memory_cost=int(os.environ.get("CG_ARGON2_MEMORY_COST", str(64 * 1024))),
+    parallelism=int(os.environ.get("CG_ARGON2_PARALLELISM", "4")),
+)
 _bearer = HTTPBearer(auto_error=False)
 
 _ROLE_RANK = {Role.VIEWER: 1, Role.ANALYST: 2, Role.ADMIN: 3}

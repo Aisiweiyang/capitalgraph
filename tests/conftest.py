@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
+
+# argon2 低档位：口令哈希在单测里被大量调用（每文件建用户+登录），默认档位拖慢套件；
+# 必须在 cg_api.auth 模块导入前设置（模块级 PasswordHasher 读取一次）
+os.environ.setdefault("CG_ARGON2_TIME_COST", "1")
+os.environ.setdefault("CG_ARGON2_MEMORY_COST", "8192")
+os.environ.setdefault("CG_ARGON2_PARALLELISM", "1")
 
 import pytest
 from cg_domain.orm import Base

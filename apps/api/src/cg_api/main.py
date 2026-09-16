@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import ClassVar
 
@@ -102,6 +103,14 @@ class AuditMiddleware:
         await self.app(scope, receive, send)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    auth_module.get_secret_key()  # prod 未配置密钥时快速失败
+    init_engine(app)
+    yield
+    await dispose_engine(app)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="CapitalGraph CN API",
@@ -109,16 +118,8 @@ def create_app() -> FastAPI:
         description="中国企业资本关系与股权穿透研究平台（结果为候选，不构成法律认定）",
         docs_url=f"{API_PREFIX}/docs",
         openapi_url=f"{API_PREFIX}/openapi.json",
+        lifespan=_lifespan,
     )
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        auth_module.get_secret_key()  # prod 未配置密钥时快速失败
-        init_engine(app)
-
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        await dispose_engine(app)
 
     # 响应压缩（最内层：外层的审计/安全头中间件仍看到原始响应）。
     # JSON 载荷与前端资源体积收益明显；阈值以下不压，避免负收益。

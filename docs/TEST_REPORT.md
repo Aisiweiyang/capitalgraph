@@ -395,3 +395,28 @@ validity=0 / uniqueness=0 / consistency=0。（AMD64 / Python 3.12.13 / Windows�
 - **趋势图抛光**：覆盖率趋势线平滑 + 面积渐变 + 数据点标记（vitest 断言的
   轴/数据结构未动）；
 - **穿透图**：breadthfirst 布局节点滑入就位（300ms），替代瞬现。
+
+## v0.7.2 维护记录（2026-09-16，测试套件提速 + lifespan 现代化，零功能变更）
+
+范围：套件耗时 171s → **108s**（含覆盖率插桩；裸跑 95s，−37%），消除自身代码的
+FastAPI on_event 弃用告警。基线 v0.7.1：后端 228 passed / 94.4%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `time uv run pytest tests --cov -p no:cacheprovider -W ignore` | **228 passed / 94.4%**，171s → **108s** |
+| `uv run pytest tests/performance -q` | 5 项全绿（共享建库后仍覆盖原三端点组断言） |
+| `CG_API_PROXY=… npx playwright test` | **20 passed**（lifespan 在 uvicorn 下启动/健康检查实测正常） |
+| ruff check / format、secret_scan、module_graph | 全部通过 |
+
+### 提速来源
+
+1. **性能基线共享建库**（约 −63s）：v0.5/v0.6/v0.7 三份性能用例此前各自建一套
+   2008 声明库（seed=42 同源同规模，约 36s/次）；收敛到
+   `tests/performance/conftest.py` 会话级夹具后只建一次。各用例的断言与输出格式不变；
+2. **argon2 成本可配**（约 −13s）：`CG_ARGON2_TIME_COST / MEMORY_COST / PARALLELISM`
+   环境变量（默认与 argon2-cffi 库默认一致，生产行为不变）；tests/conftest.py 在
+   cg_api.auth 导入前降档（time=1/mem=8MB/p=1）——单测大量建用户+登录，默认档位
+   每次哈希数百毫秒。校验安全性不受影响：argon2 编码串自带参数，verify 按串内参数执行；
+3. **lifespan 迁移**：`@app.on_event` → FastAPI lifespan（asynccontextmanager），
+   消除自身代码的 StarletteDeprecationWarning；剩余 3 条告警均为 fastapi/starlette
+   库内部实现（testclient/httpx、anyio 别名、HTTP_422 常量），待上游发版自然消除。
