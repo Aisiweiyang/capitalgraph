@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from typing import Any
 
 from cg_capital_graph import (
     RISK_CHAINS_ALGORITHM_VERSION,
@@ -68,7 +69,7 @@ async def _names(repo: Repo, entity_ids: set[str]) -> dict[str, str]:
     rows = await repo.session.execute(
         select(Entity.id, Entity.primary_name).where(Entity.id.in_(entity_ids))
     )
-    return dict(rows.all())
+    return dict((row[0], row[1]) for row in rows.all())
 
 
 def _config() -> RiskChainsConfig:
@@ -220,6 +221,7 @@ async def risk_compute(
     cycles = guarantee_cycles(edges, cfg)
     cycle_created = 0
     cycle_subjects: set[str] = set()
+    payload: dict[str, Any]
     for cycle in cycles:
         payload = {
             "cycle": list(cycle),

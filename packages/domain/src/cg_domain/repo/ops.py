@@ -248,4 +248,6 @@ class OpsRepository:
         return user
 
     async def user_count(self) -> int:
-        return int(await self.session.execute(select(func.count(User.id))).scalar_one())
+        # 注意：await 必须先于 .scalar_one()——协程对象没有该方法（曾被 mypy 揪出）
+        result = await self.session.execute(select(func.count(User.id)))
+        return int(result.scalar_one())

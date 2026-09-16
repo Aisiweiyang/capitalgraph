@@ -21,6 +21,8 @@ jobs:
           uv run ruff format --check packages apps workers tests
       - name: 模块边界检查
         run: uv run python scripts/module_graph.py
+      - name: 类型检查（mypy）
+        run: uv run mypy packages/domain/src packages/capital_graph/src packages/entity_resolution/src packages/connectors/src apps/api/src workers
       - name: 测试（含覆盖率）
         run: |
           mkdir -p data   # pytest --basetemp 指向 data/pytest-tmp，CI runner 无该目录

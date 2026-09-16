@@ -420,3 +420,35 @@ FastAPI on_event 弃用告警。基线 v0.7.1：后端 228 passed / 94.4%。
 3. **lifespan 迁移**：`@app.on_event` → FastAPI lifespan（asynccontextmanager），
    消除自身代码的 StarletteDeprecationWarning；剩余 3 条告警均为 fastapi/starlette
    库内部实现（testclient/httpx、anyio 别名、HTTP_422 常量），待上游发版自然消除。
+
+## v0.7.3 维护记录（2026-09-16，mypy 全仓拉零 + 潜伏缺陷修复 + 取数竞态，零功能变更）
+
+范围：把 dev 依赖里从未执行过的 mypy 全仓跑通并接入 CI；过程中揪出并修复一个潜伏
+仓储缺陷；修复前端阈值切换的取数竞态。基线 v0.7.2：228 passed / 94.4%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run mypy packages/*/src apps/api/src workers` | **0 errors（55 文件）**：修复 12 处（domain 1 / capital_graph 7 / api 4），CI 新增 mypy 步骤强制不回退 |
+| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **230 passed / 94.5%**（+2：user_count 回归、storage 原子性） |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 0 errors / 60 passed |
+| `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **20 passed** |
+| ruff check / format、secret_scan、module_graph | 全部通过 |
+
+### mypy 揪出的潜伏缺陷（真实 bug，非仅类型问题）
+
+- **repo.user_count**：`await self.session.execute(...).scalar_one()`——await 优先级低于
+  属性访问，实际对协程对象调 `.scalar_one()`，一旦被调用必然 AttributeError。因无任何
+  调用方而潜伏至今（admin stats 端点内联了正确实现）。已修复并补调用测试防回归；
+- 其余 11 处为类型表达问题（dict(Row) 解包、混合类型 payload、联合键 get），行为本就
+  正确，改为显式类型注解/生成器解包/幂等 str() 转换。
+
+### 前端取数竞态
+
+证据工作台的时效区与质量总览随阈值变化重新取数，原先快速连续切换阈值时，慢的旧响应
+可能乱序返回覆盖新结果。现以 AbortController 在 effect 清理时中止旧请求，并忽略
+AbortError 不误置空态。
+
+### storage 原子性测试
+
+补 LocalObjectStore 异常分支：内容寻址去重（同内容单文件）、缺键 FileNotFoundError、
+删除幂等、写失败（os.replace 注入故障）后无临时文件/半写对象残留。

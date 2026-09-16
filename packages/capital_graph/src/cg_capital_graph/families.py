@@ -22,6 +22,7 @@ import json
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from fractions import Fraction
+from typing import Any
 
 from cg_capital_graph.analysis import detect_cycles
 from cg_capital_graph.engine import GraphEdge
@@ -290,7 +291,7 @@ def family_flows(edges: list[FlowEdge], family_by_entity: dict[str, str]) -> dic
             continue
         buckets[(src, dst)].append(e)
 
-    rows = [
+    rows: list[dict[str, Any]] = [
         {
             "from_family": src,
             "to_family": dst,

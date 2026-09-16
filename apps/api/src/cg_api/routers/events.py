@@ -87,7 +87,7 @@ async def entity_names(repo: Repo, entity_ids: set[str]) -> dict[str, str]:
     rows = await repo.session.execute(
         select(Entity.id, Entity.primary_name).where(Entity.id.in_(entity_ids))
     )
-    return dict(rows.all())
+    return dict((row[0], row[1]) for row in rows.all())
 
 
 def event_out(ev: ChangeEvent, names: dict[str, str]) -> dict:

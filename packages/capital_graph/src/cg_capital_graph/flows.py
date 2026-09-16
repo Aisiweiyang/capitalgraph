@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Any
 
 AMOUNT_WAN_PER_SCALED = 0.01  # amount_scaled(万元×100) → 万元
 
@@ -168,7 +169,7 @@ def industry_flows(pairs: list[tuple[FlowEdge, str | None]]) -> dict:
             continue
         buckets[(edge.from_region, industry)].append(edge)
 
-    rows = [
+    rows: list[dict[str, Any]] = [
         {
             "from_region": src,
             "industry": ind,

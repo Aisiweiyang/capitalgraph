@@ -746,19 +746,22 @@ export const api = {
   evidenceLookup: (ids: string[]) =>
     request<EvidenceLookupOut>(`/evidence/lookup?ids=${encodeURIComponent(ids.join(","))}`),
 
-  evidenceStaleness: (params: { at?: string; years?: number } = {}) => {
+  evidenceStaleness: (
+    params: { at?: string; years?: number } = {},
+    signal?: AbortSignal,
+  ) => {
     const qs = new URLSearchParams();
     if (params.at) qs.set("at", params.at);
     if (params.years != null) qs.set("years", String(params.years));
     const query = qs.toString();
-    return request<EvidenceStalenessOut>(`/evidence/staleness${query ? `?${query}` : ""}`);
+    return request<EvidenceStalenessOut>(`/evidence/staleness${query ? `?${query}` : ""}`, { signal });
   },
 
-  evidenceQuality: (params: { years?: number; at?: string } = {}) => {
+  evidenceQuality: (params: { years?: number; at?: string } = {}, signal?: AbortSignal) => {
     const qs = new URLSearchParams();
     if (params.years != null) qs.set("years", String(params.years));
     if (params.at) qs.set("at", params.at);
-    return request<EvidenceQualityOut>(`/evidence/quality?${qs.toString()}`);
+    return request<EvidenceQualityOut>(`/evidence/quality?${qs.toString()}`, { signal });
   },
 
   evidenceStalenessScan: (params: { at?: string; years?: number } = {}) => {

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 EVENTS_ALGORITHM_VERSION = "cg-events/1.0.0"
@@ -95,7 +96,7 @@ def _percent(scaled: int | None) -> float | None:
     return round(scaled * 100.0 / _RATION_SCALE, 6)
 
 
-def _single_ratio(rows: list[EventStatement]) -> float | None:
+def _single_ratio(rows: Sequence[EventStatement]) -> float | None:
     """单声明组的比例（百分数）；多条声明时无法无歧义归因，返回 None。"""
     if len(rows) != 1:
         return None
@@ -170,6 +171,12 @@ def diff_events(
             if before == after:
                 continue  # 重录且比例不变 → 事实未变
             comparable = before is not None and after is not None
+            before_percent, after_percent = _percent(before), _percent(after)
+            delta_percent = (
+                round(after_percent - before_percent, 6)
+                if comparable and before_percent is not None and after_percent is not None
+                else None
+            )
             events.append(
                 ChangeEvent(
                     event_type="holding_ratio_changed",
@@ -178,11 +185,9 @@ def diff_events(
                     predicate=predicate,
                     statement_ids=(new[0].statement_id,),
                     prior_statement_ids=(old[0].statement_id,),
-                    before_percent=_percent(before),
-                    after_percent=_percent(after),
-                    delta_percent=(
-                        round(_percent(after) - _percent(before), 6) if comparable else None
-                    ),
+                    before_percent=before_percent,
+                    after_percent=after_percent,
+                    delta_percent=delta_percent,
                     ratio_comparable=comparable,
                 )
             )

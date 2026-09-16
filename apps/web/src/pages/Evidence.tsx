@@ -48,14 +48,23 @@ export function EvidencePage() {
   }, []);
 
   useEffect(() => {
+    // 快速切换阈值时中止上一个请求，避免慢响应乱序覆盖新结果
+    const controller = new AbortController();
+    const swallow = (err: unknown) => {
+      if ((err as Error)?.name !== "AbortError") setStaleness(null);
+    };
+    const swallowQuality = (err: unknown) => {
+      if ((err as Error)?.name !== "AbortError") setQuality(null);
+    };
     api
-      .evidenceStaleness({ years: staleYears })
+      .evidenceStaleness({ years: staleYears }, controller.signal)
       .then(setStaleness)
-      .catch(() => setStaleness(null));
+      .catch(swallow);
     api
-      .evidenceQuality({ years: staleYears })
+      .evidenceQuality({ years: staleYears }, controller.signal)
       .then(setQuality)
-      .catch(() => setQuality(null));
+      .catch(swallowQuality);
+    return () => controller.abort();
   }, [staleYears]);
 
   // deep-link：?statements=id1,id2 → 自动反查

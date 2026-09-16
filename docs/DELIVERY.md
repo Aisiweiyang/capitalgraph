@@ -253,3 +253,11 @@ OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
   （默认不变，测试降档）；套件 171s → **108s**（−37%，含覆盖率插桩）；
 - FastAPI `on_event` 迁移 lifespan，自身代码弃用告警清零；
 - 零功能变更：后端 228 passed / 94.4%，E2E 20 全绿。详见 TEST_REPORT §v0.7.2。
+
+## v0.7.3 维护交付（2026-09-16）：mypy 全仓拉零 + CI 接入
+
+- mypy（dev 依赖中原为摆设）全仓跑通：修复 12 处类型问题后 55 文件零错误，
+  CI backend job 新增 mypy 步骤强制不回退；
+- 揪出并修复潜伏仓储缺陷 user_count（await 优先级错误，调用必炸，因无调用方未暴露）；
+- 前端证据工作台修复阈值切换的取数竞态（AbortController）；
+- 后端 228→**230 passed / 94.5%**，vitest 60，E2E 20 全绿。详见 TEST_REPORT §v0.7.3。

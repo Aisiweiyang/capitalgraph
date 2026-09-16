@@ -233,7 +233,7 @@ async def shareholders(
     names = await _names(repo, list(holders))
     result = list(holders.values())
     for item in result:
-        item["name"] = names.get(item["shareholder_id"], "")
+        item["name"] = names.get(str(item["shareholder_id"]), "")
     return {
         "entity_id": entity_id,
         "at": str(at) if at else None,
@@ -264,7 +264,7 @@ async def investments(
     names = await _names(repo, list(rows))
     result = list(rows.values())
     for item in result:
-        item["name"] = names.get(item["target_id"], "")
+        item["name"] = names.get(str(item["target_id"]), "")
     return {"entity_id": entity_id, "at": str(at) if at else None, "investments": result}
 
 
