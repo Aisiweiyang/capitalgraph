@@ -46,6 +46,7 @@ uv run pytest
 
 ## 文档
 
+- [PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) **项目完整指南**（功能全景/代码开发/使用/调试入口）
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) 架构与取舍
 - [DATA_MODEL.md](docs/DATA_MODEL.md) 数据模型
 - [docs/DECISIONS.md](docs/DECISIONS.md) ADR
