@@ -271,6 +271,7 @@ async def test_staleness_rows_max_fetched_at_excludes_uncovered(db_session):
     ev = await repo.evidence_for_statements([covered.id])
     assert ev[covered.id][0]["fetched_at"].startswith("20")
 
+
 async def test_user_count_counts_users(db_session):
     """回归：user_count 曾把 await 写在 .scalar_one() 之前（对协程取属性，必然 AttributeError）。"""
     from cg_domain.enums import Role
@@ -278,12 +279,7 @@ async def test_user_count_counts_users(db_session):
 
     repo = Repository(db_session)
     assert await repo.user_count() == 0
-    repo.session.add(
-        User(username="u1", password_hash="x", role=Role.VIEWER.value)
-    )
-    repo.session.add(
-        User(username="u2", password_hash="x", role=Role.VIEWER.value)
-    )
+    repo.session.add(User(username="u1", password_hash="x", role=Role.VIEWER.value))
+    repo.session.add(User(username="u2", password_hash="x", role=Role.VIEWER.value))
     await db_session.flush()
     assert await repo.user_count() == 2
-

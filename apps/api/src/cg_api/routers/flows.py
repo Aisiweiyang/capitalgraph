@@ -32,10 +32,10 @@ _FLOW_PREDICATES: tuple[str, ...] = ("holds_shares", "invests_in")
 async def _load_flow_edges(repo: Repo, at: date | None) -> tuple[list[FlowEdge], list[FlowEdge]]:
     """返回 (跨省边, 全部有效边)。region 未知的主体的边只丢弃并计数，不猜测归属。"""
     rows = await repo.flow_rows(at, predicates=_FLOW_PREDICATES)
-    region_by_entity: dict[str, str | None] = dict(
-        (row[0], row[1])
+    region_by_entity: dict[str, str | None] = {
+        row[0]: row[1]
         for row in (await repo.session.execute(select(Entity.id, Entity.region_code))).all()
-    )
+    }
     all_edges: list[FlowEdge] = []
     for r in rows:
         src = region_by_entity.get(r.subject_id)
@@ -57,20 +57,20 @@ async def _load_flow_edges(repo: Repo, at: date | None) -> tuple[list[FlowEdge],
 
 
 async def _industry_pairs(repo: Repo, edges: list[FlowEdge]) -> list[tuple[FlowEdge, str | None]]:
-    industry_by_entity: dict[str, str | None] = dict(
-        (row[0], row[1])
+    industry_by_entity: dict[str, str | None] = {
+        row[0]: row[1]
         for row in (await repo.session.execute(select(Entity.id, Entity.industry))).all()
-    )
+    }
     return [(e, industry_by_entity.get(e.object_id)) for e in edges]
 
 
 async def _cycle_stats(repo: Repo, at: date | None) -> dict:
     """环路资金统计：复用穿透引擎的环路检测，映射到省份维度。"""
     rows = await repo.flow_rows(at, predicates=_FLOW_PREDICATES)
-    region_by_entity: dict[str, str | None] = dict(
-        (row[0], row[1])
+    region_by_entity: dict[str, str | None] = {
+        row[0]: row[1]
         for row in (await repo.session.execute(select(Entity.id, Entity.region_code))).all()
-    )
+    }
     amount_by_statement: dict[str, int | None] = {r.statement_id: r.amount_scaled for r in rows}
     row_by_pair: dict[frozenset[str], FlowRow] = {}
     graph_edges = [
