@@ -580,3 +580,26 @@ uv 导出的 requirements.txt。
 ### 可访问性
 
 新增 `:focus-visible` 全局焦点圈（键盘 Tab 导航可见、鼠标点击不显示）。
+
+## v0.8.4 维护记录（2026-09-16，运行时路径审计 + 鉴权层测试，零功能变更）
+
+范围：审计两个从未细看的运行时路径（结论均干净）；鉴权层补组件测试。
+基线 v0.8.3：后端 245，前端 66，E2E 22。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests -n auto --dist loadfile` | 245 passed 零回归 |
+| `cd apps/web && npm run lint && npx vitest run --coverage` | 0 errors / **74 passed**（+8 鉴权层）；总体覆盖 59.9%→**62.25%**，auth.tsx 30%→**100%** |
+| `npm run build` | 通过 |
+
+### 运行时路径审计结论（无需改动）
+
+- **AuditMiddleware**：仅对写方法（POST/PUT/DELETE/PATCH）准备审计主体（解码 JWT
+  写入 request state），GET 直通；实际落库由路由层显式调用——不是每请求写库；
+- **events 实体名映射**：单条 `IN` 批量查询，无 N+1（与 evidence_for_statements
+  此前结论一致）。
+
+### 鉴权层测试（+8，auth.tsx 100%）
+
+匿名态与角色门、viewer/analyst 预置 token 恢复、坏 token 不崩溃、login 成功写
+token 与状态、login 失败状态保持、logout 清空、Provider 外调用抛明确错误。
