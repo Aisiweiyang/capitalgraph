@@ -287,3 +287,11 @@ POST /evidence/quality/scan（analyst+）把有效性/唯一性/跨源一致性�
 - 限流默认不再信任 X-Forwarded-For（可被逐请求伪造而绕过限流）；反向代理部署经
   `CG_TRUST_PROXY=true` 显式开启。THREAT_MODEL 新增 T10；
 - 测试 +2（默认伪造不绕过 / trust 模式桶隔离），后端 242→**244 passed**。
+
+## v0.8.3 维护交付（2026-09-16）：前端覆盖率基线 + 工作区清理
+
+- 首次量化前端覆盖率（@vitest/coverage-v8）：总体 55.9%→**59.9%**；数据层 api.ts
+  补 5 项分支测试（鉴权头/401 清 token/错误提取/回退消息）；
+- 清理 data/ 历轮运行残留（日志/临时输出/调试库）；
+- 全局 :focus-visible 键盘焦点样式；
+- 后端 245 不变，前端 61→**66**，E2E 22 全绿。详见 TEST_REPORT §v0.8.3。

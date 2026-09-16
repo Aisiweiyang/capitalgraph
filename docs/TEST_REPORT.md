@@ -550,3 +550,33 @@ action=evidence.quality_scan。
   （写竞争等待而非立即报错）。测试经独立连接验证 WAL 已持久化；
 - **迁移漂移检测**：CI 迁移检查步骤在 upgrade 后增加 `alembic check`，
   autogenerate 比对 ORM 元数据与当前 schema。
+
+## v0.8.3 维护记录（2026-09-16，前端覆盖率量化 + 数据层测试 + 工作区清理，零功能变更）
+
+范围：首次量化前端覆盖率并补数据层测试；清理 data/ 历轮运行残留；键盘焦点可见样式。
+基线 v0.8.2：后端 245 passed / 94.8%，前端 61，E2E 22。
+
+| 命令 | 结果 |
+| --- | --- |
+| `npx vitest run --coverage`（新增 @vitest/coverage-v8） | 总体语句覆盖 **55.9% → 59.9%**；vitest 61→**66 passed**（+5 API 层） |
+| `uv run pytest tests -n auto --dist loadfile` | 245 passed 零回归 |
+| `CG_API_PROXY=… npx playwright test` | **22 passed** |
+| npm run build / lint / ruff / mypy | 全部通过 |
+
+### 前端覆盖率基线（首测）
+
+- api.ts（全站数据层）1.96% → **21.6%**：mock 全局 fetch 覆盖 request 主体分支
+  （鉴权头注入、401 清 token、detail 错误提取、非 JSON 回退默认消息、token 存取）；
+- 剩余未覆盖为各端点方法的模板化薄包装（逻辑核心 request 已测）与 EChart canvas
+  组件（渲染归 E2E 覆盖）——按性价比止步于此；
+- 纯函数模块维持高位（report 91%、eventsDisplay/riskDisplay 100% 等）。
+
+### 工作区卫生
+
+删除 data/ 下历轮运行残留：uvicorn 日志 ×13、pytest 输出 ×7、alembic-check/、
+pytest-tmp/、dbg2.sqlite3（调试库）。保留主库、E2E 库（e2e-v05）、CSV 模板与
+uv 导出的 requirements.txt。
+
+### 可访问性
+
+新增 `:focus-visible` 全局焦点圈（键盘 Tab 导航可见、鼠标点击不显示）。
