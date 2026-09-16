@@ -239,6 +239,9 @@ E2E 用例增至 19 项后，后端默认限流（每 IP 120 次/分）可能在
 本地跑全量 E2E 时建议提高限额启动后端：
 `CG_RATE_LIMIT_PER_MINUTE=1200 uv run uvicorn cg_api.main:app --port 8301`。
 
+> 部署在反向代理（nginx/Caddy）之后时，设 `CG_TRUST_PROXY=true` 限流才按
+> X-Forwarded-For 区分真实客户端；默认不信任该头（可被伪造绕过限流）。
+
 ## 10. v0.7 新功能：质量总览（五维度）
 
 证据工作台新增"质量总览"区，把数据质量聚成五个各自独立的计数：

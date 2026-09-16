@@ -26,6 +26,7 @@
 | T07 | I 路径穿越（对象存储键、导出文件名） | 内容寻址键(sha256 hex)；文件名白名单清洗 | 单测：`../`、绝对路径、盘符 |
 | T08 | R/D 恶意上传（zip bomb、巨型文件、公式注入 CSV） | 大小上限、解压比上限、类型白名单、CSV 公式前缀转义（`=`/`+`/`-`/`@`） | 单测：超限拒、公式转义 |
 | T09 | I 日志泄密 | 日志脱敏器（token/密码/authorization 头）；不记堆栈与 SQL | 单测：敏感字段掩码 |
+| T10 | S 伪造 X-Forwarded-For 绕过限流（登录爆破/导入滥用） | 中间件默认只用 socket 对端 IP 归桶；仅 `CG_TRUST_PROXY=true`（可信反代后）才采信 XFF | 单测：默认伪造头不绕过；trust 模式桶隔离 |
 | T10 | D 限流绕过/DoS | 内存令牌桶中间件按 IP+路由；穿透查询节点/路径/超时上限 | 单测：超限 429；穿越配置拒超限值 |
 | T11 | S 密钥泄露 | 密钥仅来自环境；`.env.example` 无真值；secret scanning(gitleaks) | CI + 本地扫描 |
 | T12 | T 依赖供应链 | 锁文件(uv.lock/package-lock.json)、pip-audit、npm audit、SBOM | 阶段6 执行记录 |

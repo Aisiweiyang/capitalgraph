@@ -513,3 +513,21 @@ job 接入 npm 缓存；registry/regions 防御分支补测。基线 v0.7.4：23
 幂等语义：有效性按实体（同实体多候选只登记一次）、唯一性/一致性按组代表声明
 （组内最小 statement_id）；detail_json 存全组/取值与算法版本；扫描写审计
 action=evidence.quality_scan。
+
+## v0.8.1 维护记录（2026-09-16，限流伪造头修复 + 文档时效同步，零功能变更）
+
+范围：修复限流中间件无条件信任 X-Forwarded-For 的安全缺口（直连部署时限流可被
+任意绕过），文档状态同步至 v0.8。基线 v0.8：242 passed / 94.8%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **244 passed / 94.8%**（+2：伪造头不绕过、trust 模式桶隔离） |
+| ruff / format / mypy / secret_scan / module_graph（CI 同命令） | 全部通过 |
+
+### 缺口与修复
+
+- **缺口**：`RateLimitMiddleware._client_key` 无条件优先取 X-Forwarded-For 归桶；
+  uvicorn 直接暴露（README 默认部署）时，攻击者逐请求伪造该头即可获得无限新桶，
+  限流对登录爆破与导入滥用完全失效；
+- **修复**：默认只用 socket 对端 IP；`CG_TRUST_PROXY=true`（可信反向代理之后）才采信
+  XFF。THREAT_MODEL 补 T10 条目；USER_GUIDE 补部署提示。

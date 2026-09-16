@@ -281,3 +281,9 @@ POST /evidence/quality/scan（analyst+）把有效性/唯一性/跨源一致性�
 复核通道（rule_name 按维度、实体级/组代表两级幂等键、写审计），工作台质量总览区
 提供"登记复核"入口（viewer 见角色提示）。ADR-021 修订同步。
 实测：后端 **242 passed / 94.8%**，vitest **61**，E2E **22** 全绿。详见 TEST_REPORT §v0.8。
+
+## v0.8.1 维护交付（2026-09-16）：限流伪造头修复
+
+- 限流默认不再信任 X-Forwarded-For（可被逐请求伪造而绕过限流）；反向代理部署经
+  `CG_TRUST_PROXY=true` 显式开启。THREAT_MODEL 新增 T10；
+- 测试 +2（默认伪造不绕过 / trust 模式桶隔离），后端 242→**244 passed**。

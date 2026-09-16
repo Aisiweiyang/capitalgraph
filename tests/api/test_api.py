@@ -335,3 +335,50 @@ def test_small_responses_not_gzipped(api, auth):
     resp = api.get("/api/v1/health", headers={"Accept-Encoding": "gzip"})
     assert resp.status_code == 200
     assert resp.headers.get("content-encoding") != "gzip"
+
+
+def test_rate_limit_ignores_spoofed_forwarded_for_by_default():
+    """默认不信任 X-Forwarded-For：伪造头不能把请求分到新桶绕过限流。"""
+    os.environ["CG_RATE_LIMIT_PER_MINUTE"] = "5"
+    os.environ.pop("CG_TRUST_PROXY", None)
+    try:
+        client = TestClient(create_app())
+        with client:
+            codes = [
+                client.post(
+                    "/api/v1/auth/login",
+                    json={"username": "x", "password": "y"},
+                    headers={"X-Forwarded-For": f"10.0.0.{i}"},
+                ).status_code
+                for i in range(12)
+            ]
+        assert 429 in codes, "伪造 XFF 换头不得绕过限流"
+    finally:
+        os.environ.pop("CG_RATE_LIMIT_PER_MINUTE", None)
+
+
+def test_rate_limit_honors_forwarded_for_when_trust_proxy():
+    """CG_TRUST_PROXY 开启（反向代理部署）：XFF 决定桶归属，不同客户端互不影响。"""
+    os.environ["CG_RATE_LIMIT_PER_MINUTE"] = "3"
+    os.environ["CG_TRUST_PROXY"] = "true"
+    try:
+        client = TestClient(create_app())
+        with client:
+            # 客户端 A 打满自己的桶
+            for _ in range(3):
+                resp = client.post(
+                    "/api/v1/auth/login",
+                    json={"username": "x", "password": "y"},
+                    headers={"X-Forwarded-For": "10.1.1.7"},
+                )
+                assert resp.status_code in (401, 429)
+            # 客户端 B 仍有独立额度（401 = 未被 A 的 429 波及）
+            resp = client.post(
+                "/api/v1/auth/login",
+                json={"username": "x", "password": "y"},
+                headers={"X-Forwarded-For": "10.1.1.8"},
+            )
+            assert resp.status_code == 401
+    finally:
+        os.environ.pop("CG_RATE_LIMIT_PER_MINUTE", None)
+        os.environ.pop("CG_TRUST_PROXY", None)

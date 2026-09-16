@@ -40,11 +40,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.bucket_capacity = per_minute
         self.refill = per_minute / 60.0
         self.buckets: dict[str, TokenBucket] = {}
+        # 仅在可信反向代理之后才允许开启：XFF 可被客户端伪造，直连暴露时
+        # 信任它等于限流可被任意绕过（默认关闭）
+        self.trust_proxy = os.environ.get("CG_TRUST_PROXY", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
 
     def _client_key(self, request: Request) -> str:
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        if self.trust_proxy:
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
 
     async def dispatch(self, request: Request, call_next) -> Response:
