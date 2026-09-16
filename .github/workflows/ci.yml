@@ -23,10 +23,10 @@ jobs:
         run: uv run python scripts/module_graph.py
       - name: 类型检查（mypy）
         run: uv run mypy packages/domain/src packages/capital_graph/src packages/entity_resolution/src packages/connectors/src apps/api/src workers
-      - name: 测试（含覆盖率）
+      - name: 测试（含覆盖率，xdist 按文件并行）
         run: |
           mkdir -p data   # pytest --basetemp 指向 data/pytest-tmp，CI runner 无该目录
-          uv run pytest tests --cov --cov-report=term
+          uv run pytest tests --cov --cov-report=term -n auto --dist loadfile
       - name: 秘密扫描
         run: uv run python scripts/secret_scan.py
       - name: SAST（bandit）

@@ -452,3 +452,26 @@ AbortError 不误置空态。
 
 补 LocalObjectStore 异常分支：内容寻址去重（同内容单文件）、缺键 FileNotFoundError、
 删除幂等、写失败（os.replace 注入故障）后无临时文件/半写对象残留。
+
+## v0.7.4 维护记录（2026-09-16，测试套件并行化 + 防御分支补测，零功能变更）
+
+范围：pytest-xdist 按文件并行接入本地与 CI；补 db/normalization 防御性分支至 100%。
+基线 v0.7.3：233 passed / 94.5%，套件 108s。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **237 passed / 94.7%**，含覆盖率插桩 **108s → 55s（2×）**；裸跑三轮 44–45s 稳定全绿 |
+| `uv run mypy …`（全仓）/ ruff / secret_scan / module_graph | 全部通过 |
+
+### 并行化要点
+
+- `--dist loadfile`：同一测试文件固定在同一 worker，模块级 fixture 与进程内
+  CG_DATABASE_URL 环境设定不会跨文件互踩；
+- pytest-cov 原生支持 xdist 覆盖率合并，CI 报告数字与顺序执行一致；
+- 性能护栏（max_ms < 10s 级）实测并行负载下 p50/max 量级不变，离护栏两个数量级。
+
+### 补测（+4，db.py / normalization.py 均至 100%）
+
+- 空名/纯空白 normalize、USCC 字符集外字符（I/O/S/V/Z）判非法；
+- make_engine 非 sqlite 分支（mock create_async_engine 验参数，
+  pool_pre_ping 保留断言；环境无 asyncpg 驱动，真实构造留给集成）；default_database_url 兜底值。

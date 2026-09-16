@@ -261,3 +261,9 @@ OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
 - 揪出并修复潜伏仓储缺陷 user_count（await 优先级错误，调用必炸，因无调用方未暴露）；
 - 前端证据工作台修复阈值切换的取数竞态（AbortController）；
 - 后端 228→**233 passed / 94.5%**，vitest 60，E2E 20 全绿。详见 TEST_REPORT §v0.7.3。
+
+## v0.7.4 维护交付（2026-09-16）：测试并行化（2×）+ 防御分支补测
+
+- pytest-xdist（`-n auto --dist loadfile`）接入本地与 CI：含覆盖率插桩
+  108s → **55s**；237 passed / 94.7%；
+- db.py / normalization.py 防御性分支补测至 100%。详见 TEST_REPORT §v0.7.4。
