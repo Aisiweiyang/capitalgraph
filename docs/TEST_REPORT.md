@@ -603,3 +603,13 @@ uv 导出的 requirements.txt。
 
 匿名态与角色门、viewer/analyst 预置 token 恢复、坏 token 不崩溃、login 成功写
 token 与状态、login 失败状态保持、logout 清空、Provider 外调用抛明确错误。
+
+## v0.8.5 维护记录（2026-09-16，入口资产审计 + README 端口缺陷修复）
+
+| 项 | 结论 |
+| --- | --- |
+| tests/performance/test_perf.py（v0.3 最早基线） | 健康：测的是纯函数层 penetrate/analyse（2990 边 p95），与 v0.5+ 的 HTTP 端点基线分层互补，随套件持续运行且绿 |
+| 启动演示.cmd | 与当前流程一致：uv sync --frozen → 迁移 → cg-seed（幂等）→ CG_WEB_DIST 托管 dist → uvicorn 8300；dist 未构建时给出明确指引 |
+| README 快速开始端口 | **缺陷修复**：写的是 5173，vite 实际监听 5273（vite.config.ts），照 README 操作会打开错误地址；已改正。其余文档（USER_GUIDE/PROJECT_GUIDE/TEST_REPORT/DELIVERY）均为 5273 无误 |
+
+后端 245 passed 零回归（全套件含 test_perf.py 持续通过）。

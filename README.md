@@ -24,7 +24,7 @@ uv run uvicorn cg_api.main:app --port 8300
 # OpenAPI:  http://127.0.0.1:8300/api/v1/docs
 
 # 前端
-cd apps/web && npm install && npm run dev   # http://localhost:5173
+cd apps/web && npm install && npm run dev   # http://localhost:5273
 
 # 测试
 uv run pytest
