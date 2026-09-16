@@ -531,3 +531,22 @@ action=evidence.quality_scan。
   限流对登录爆破与导入滥用完全失效；
 - **修复**：默认只用 socket 对端 IP；`CG_TRUST_PROXY=true`（可信反向代理之后）才采信
   XFF。THREAT_MODEL 补 T10 条目；USER_GUIDE 补部署提示。
+
+## v0.8.2 维护记录（2026-09-16，SQLite WAL + 迁移漂移检测，零功能变更）
+
+范围：SQLite 引擎开启 WAL 与 busy_timeout；CI 接入 alembic check（ORM 与迁移 schema
+漂移护栏）。基线 v0.8.1：244 passed / 94.8%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run alembic upgrade head && uv run alembic check` | **No new upgrade operations detected**（当前零漂移；此后改 ORM 忘建迁移时 CI 在此失败） |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **245 passed / 94.8%**（+1：WAL 持久性断言） |
+| ruff / format / mypy / secret_scan / module_graph（CI 同命令） | 全部通过 |
+
+### 变更说明
+
+- **WAL**：make_engine 的 SQLite 连接钩子设置 `PRAGMA journal_mode=WAL`（读写不互斥，
+  并发读不再锁库；库文件持久属性，旧库首次连接后自动转换）与 `PRAGMA busy_timeout=5000`
+  （写竞争等待而非立即报错）。测试经独立连接验证 WAL 已持久化；
+- **迁移漂移检测**：CI 迁移检查步骤在 upgrade 后增加 `alembic check`，
+  autogenerate 比对 ORM 元数据与当前 schema。
