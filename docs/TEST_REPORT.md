@@ -475,3 +475,25 @@ AbortError 不误置空态。
 - 空名/纯空白 normalize、USCC 字符集外字符（I/O/S/V/Z）判非法；
 - make_engine 非 sqlite 分支（mock create_async_engine 验参数，
   pool_pre_ping 保留断言；环境无 asyncpg 驱动，真实构造留给集成）；default_database_url 兜底值。
+
+## v0.7.5 维护记录（2026-09-16，写通道端到端 + CI 缓存 + 收尾补测，零功能变更）
+
+范围：补上 analyst"扫描入库"写通道的端到端覆盖（此前只有 API 级断言）；CI frontend
+job 接入 npm 缓存；registry/regions 防御分支补测。基线 v0.7.4：237 passed / 94.7%。
+
+| 命令 | 结果 |
+| --- | --- |
+| `CG_API_PROXY=… npx playwright test` | **21 passed**（新增 analyst 扫描入库用例；连续两轮重跑验证幂等断言与库状态无关，可重复执行） |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **239 passed / 94.8%**（+2：registry 环境开关、regions 代码校验） |
+| ruff / format / mypy / secret_scan / module_graph（CI 同命令） | 全部通过 |
+
+### analyst 写通道 E2E（v07-staleness-scan.spec.ts）
+
+页内登录 analyst 换 token 后刷新：viewer 的角色提示消失、"扫描入库"按钮出现 → 点击 →
+结果行"已入库 N 条（跳过重复 M 条）· 规则 stale_source" → 重复点击全部 skipped（幂等
+端到端验证）。断言与库历史状态无关，E2E 库无需重置。
+
+### CI
+
+- frontend：setup-node 开启 `cache: npm`（锁文件路径 apps/web/package-lock.json）；
+- 核验确认后端 ruff 规则已含 B/SIM/UP/C4 全量族且零告警，无需再收严。

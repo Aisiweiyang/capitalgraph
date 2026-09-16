@@ -71,3 +71,18 @@ def test_settings_defaults_are_safe():
     assert s.store_raw_documents is True
     assert s.penetration.max_depth <= 12
     assert 0 < s.penetration.timeout_seconds <= 60
+
+
+def test_get_connector_env_kill_switch(monkeypatch):
+    """运维开关：CG_CONNECTOR_<ID>_ENABLED=false/off 时该连接器不可用。"""
+    from cg_connectors.registry import get_connector, list_connectors
+
+    monkeypatch.setenv("CG_CONNECTOR_SYNTHETIC_ENABLED", "no")
+    assert get_connector("synthetic") is None
+    assert all(c.spec().connector_id != "synthetic" for c in list_connectors())
+
+    monkeypatch.setenv("CG_CONNECTOR_SYNTHETIC_ENABLED", "false")
+    assert get_connector("synthetic") is None
+
+    monkeypatch.delenv("CG_CONNECTOR_SYNTHETIC_ENABLED")
+    assert get_connector("synthetic") is not None

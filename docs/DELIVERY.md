@@ -267,3 +267,10 @@ OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
 - pytest-xdist（`-n auto --dist loadfile`）接入本地与 CI：含覆盖率插桩
   108s → **55s**；237 passed / 94.7%；
 - db.py / normalization.py 防御性分支补测至 100%。详见 TEST_REPORT §v0.7.4。
+
+## v0.7.5 维护交付（2026-09-16）：写通道端到端 + CI 缓存
+
+- E2E 20→**21 passed**：补 analyst"扫描入库"写通道用例（按钮 RBAC 显隐 + 幂等登记
+  created→skipped 端到端，断言与库状态无关可重复执行）；
+- CI frontend job 开启 npm 缓存；registry 运维开关/regions 代码校验补测，
+  后端 237→**239 passed / 94.8%**。详见 TEST_REPORT §v0.7.5。
