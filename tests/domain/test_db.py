@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from cg_domain.db import default_database_url, make_engine
 from cg_domain.normalization import is_valid_uscc, normalize_name
 
@@ -28,9 +27,7 @@ def test_make_engine_non_sqlite_branch(monkeypatch):
         captured.update(url=url, echo=echo, pool_pre_ping=pool_pre_ping)
 
     monkeypatch.setattr(dbmod, "create_async_engine", fake_create)
-    dbmod.make_engine(
-        "postgresql+asyncpg://cg:cg@localhost:5432/capitalgraph", echo=True
-    )
+    dbmod.make_engine("postgresql+asyncpg://cg:cg@localhost:5432/capitalgraph", echo=True)
     assert captured["url"] == "postgresql+asyncpg://cg:cg@localhost:5432/capitalgraph"
     assert captured["echo"] is True
     assert captured["pool_pre_ping"] is True, "非 sqlite 分支必须保留 pool_pre_ping"
