@@ -260,4 +260,4 @@ OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
   CI backend job 新增 mypy 步骤强制不回退；
 - 揪出并修复潜伏仓储缺陷 user_count（await 优先级错误，调用必炸，因无调用方未暴露）；
 - 前端证据工作台修复阈值切换的取数竞态（AbortController）；
-- 后端 228→**230 passed / 94.5%**，vitest 60，E2E 20 全绿。详见 TEST_REPORT §v0.7.3。
+- 后端 228→**233 passed / 94.5%**，vitest 60，E2E 20 全绿。详见 TEST_REPORT §v0.7.3。

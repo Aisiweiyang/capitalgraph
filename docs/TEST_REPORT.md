@@ -429,7 +429,7 @@ FastAPI on_event 弃用告警。基线 v0.7.1：后端 228 passed / 94.4%。
 | 命令 | 结果 |
 | --- | --- |
 | `uv run mypy packages/*/src apps/api/src workers` | **0 errors（55 文件）**：修复 12 处（domain 1 / capital_graph 7 / api 4），CI 新增 mypy 步骤强制不回退 |
-| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **230 passed / 94.5%**（+2：user_count 回归、storage 原子性） |
+| `uv run pytest tests --cov -p no:cacheprovider -W ignore` | **233 passed / 94.5%**（+5：user_count 回归 1、storage 原子性 4） |
 | `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 0 errors / 60 passed |
 | `CG_API_PROXY=http://127.0.0.1:8301 npx playwright test` | **20 passed** |
 | ruff check / format、secret_scan、module_graph | 全部通过 |
