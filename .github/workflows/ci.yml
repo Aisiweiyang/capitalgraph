@@ -36,6 +36,8 @@ jobs:
           mkdir -p data
           export CG_DATABASE_URL="sqlite+aiosqlite:///./data/ci.sqlite3"
           uv run alembic upgrade head
+          # ORM 与迁移 schema 漂移检测：改模型忘建迁移时在此失败
+          uv run alembic check
           uv run alembic downgrade base
           uv run alembic upgrade head
 

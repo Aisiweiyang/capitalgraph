@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cg_domain.db import default_database_url
+from cg_domain.db import default_database_url, make_engine
 from cg_domain.normalization import is_valid_uscc, normalize_name
 
 
@@ -36,3 +36,42 @@ def test_make_engine_non_sqlite_branch(monkeypatch):
 def test_default_database_url_falls_back(monkeypatch):
     monkeypatch.delenv("CG_DATABASE_URL", raising=False)
     assert default_database_url() == "sqlite+aiosqlite:///./data/capitalgraph.sqlite3"
+
+
+def test_sqlite_engine_enables_wal(tmp_path):
+    """WAL 为库文件持久属性：经引擎任一连接后，独立连接可读到 wal 模式。"""
+    import asyncio
+    import sqlite3
+
+    from sqlalchemy import event
+
+    db_path = tmp_path / "wal.sqlite3"
+    engine = make_engine(f"sqlite+aiosqlite:///{db_path}")
+    executed: list = []
+
+    def _pragma(dbapi_conn, _record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
+        executed.append(True)
+
+    event.listen(engine.sync_engine, "connect", _pragma)
+    try:
+
+        async def _touch():
+            async with engine.connect() as conn:
+                await conn.exec_driver_sql("SELECT 1")
+
+        asyncio.run(_touch())
+    finally:
+        event.remove(engine.sync_engine, "connect", _pragma)
+    engine.sync_engine.dispose()
+
+    assert executed, "connect 钩子未执行"
+    conn = sqlite3.connect(db_path)
+    try:
+        mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    finally:
+        conn.close()
+    assert str(mode).lower() == "wal"
