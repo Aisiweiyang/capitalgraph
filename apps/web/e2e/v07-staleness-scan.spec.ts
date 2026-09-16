@@ -45,3 +45,26 @@ test.describe.serial("CapitalGraph CN v0.7 时效扫描入库（analyst 写通�
     await expect(result).toContainText(/已入库 0 条（跳过重复 [1-9]\d* 条）· 规则 stale_source/);
   });
 });
+
+
+test.describe.serial("CapitalGraph CN v0.8 质量登记（analyst 写通道）", () => {
+  test("三类候选幂等登记复核通道", async ({ page }) => {
+    await page.goto("/evidence");
+    await loginAnalyst(page);
+
+    const scan = page.getByTestId("quality-scan");
+    await expect(scan).toBeVisible({ timeout: 20000 });
+
+    // 登记结果与库历史状态无关（可重复执行）；规则名清单随文案输出
+    await scan.click();
+    const result = page.getByTestId("quality-scan-result");
+    await expect(result).toBeVisible({ timeout: 15000 });
+    await expect(result).toContainText(
+      /已入库 \d+ 条（跳过重复 \d+ 条）· identifier_validity\/duplicate_statement\/cross_source_conflict/,
+    );
+
+    // 幂等：再次登记 created=0
+    await page.getByTestId("quality-scan").click();
+    await expect(result).toContainText(/已入库 0 条（跳过重复 \d+ 条）/);
+  });
+});

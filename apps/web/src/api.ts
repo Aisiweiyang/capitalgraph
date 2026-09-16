@@ -584,6 +584,18 @@ export interface StalenessScanOut {
   skipped: number;
   rule_name: string;
 }
+export interface QualityScanOut {
+  at: string;
+  total_candidates: number;
+  created: number;
+  skipped: number;
+  by_rule: {
+    identifier_validity: number;
+    duplicate_statement: number;
+    cross_source_conflict: number;
+  };
+  rule_names: string[];
+}
 export interface EvidenceQualityOut {
   at: string;
   years: number;
@@ -763,6 +775,8 @@ export const api = {
     if (params.at) qs.set("at", params.at);
     return request<EvidenceQualityOut>(`/evidence/quality?${qs.toString()}`, { signal });
   },
+
+  evidenceQualityScan: () => request<QualityScanOut>("/evidence/quality/scan", { method: "POST" }),
 
   evidenceStalenessScan: (params: { at?: string; years?: number } = {}) => {
     const qs = new URLSearchParams();

@@ -29,7 +29,11 @@ async def _prepare_db(db_path: Path) -> None:
     hasher = PasswordHasher()
     factory = make_session_factory(engine)
     async with factory() as session:
-        for name, role in (("admin", Role.ADMIN), ("viewer", Role.VIEWER)):
+        for name, role in (
+            ("admin", Role.ADMIN),
+            ("analyst", Role.ANALYST),
+            ("viewer", Role.VIEWER),
+        ):
             session.add(
                 User(
                     username=name,
@@ -62,7 +66,11 @@ def _login(client: TestClient, username: str) -> dict:
 
 @pytest.fixture(scope="module")
 def auth(api):
-    return {"admin": _login(api, "admin"), "viewer": _login(api, "viewer")}
+    return {
+        "admin": _login(api, "admin"),
+        "analyst": _login(api, "analyst"),
+        "viewer": _login(api, "viewer"),
+    }
 
 
 @pytest.fixture(scope="module")
@@ -402,3 +410,82 @@ def test_quality_uniqueness_flags_duplicate_statement(api, auth, seeded):
     groups = [g for g in body["uniqueness"]["groups"] if sid in g["statement_ids"]]
     assert groups and dup_id in groups[0]["statement_ids"]
     assert body["consistency"]["conflict_count"] >= 1
+
+
+# ---------------------------------------- v0.8 质量登记闭环（ADR-021 修订）
+
+_BAD_SCAN_SEQ = 0
+
+
+def _inject_bad_identifier(api):
+    """向一个全新实体注入校验位非法的 uscc（每次唯一，实体级幂等不互扰）。"""
+    global _BAD_SCAN_SEQ
+    import os
+    import sqlite3
+
+    _BAD_SCAN_SEQ += 1
+    db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
+    conn = sqlite3.connect(db_path)
+    try:
+        entity_id = conn.execute(
+            "SELECT id FROM entities ORDER BY id LIMIT 1 OFFSET ?", (_BAD_SCAN_SEQ,)
+        ).fetchone()[0]
+        value = f"91110000YYYYYYYY{_BAD_SCAN_SEQ:02d}"
+        conn.execute(
+            "INSERT INTO entity_identifiers (id, entity_id, namespace, value, created_at) "
+            "VALUES (?, ?, ?, ?, datetime('now'))",
+            (f"badqccscan{_BAD_SCAN_SEQ:022d}", entity_id, "uscc", value),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return entity_id, value
+
+
+def test_quality_scan_rbac(api, seeded, auth):
+    assert api.post("/api/v1/evidence/quality/scan").status_code == 401
+    assert api.post("/api/v1/evidence/quality/scan", headers=auth["viewer"]).status_code == 403
+    assert api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"]).status_code == 200
+
+
+def test_quality_scan_registers_and_is_idempotent(api, seeded, auth):
+    """新注入候选必被登记（增量精确断言）；二扫全部跳过（幂等，与库历史状态无关）。"""
+    first = api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"])
+    assert first.status_code == 200
+
+    entity_id, value = _inject_bad_identifier(api)
+    second = api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"])
+    assert second.status_code == 200
+    body = second.json()
+    assert body["by_rule"]["identifier_validity"] == 1, "新实体的非法 uscc 必须登记"
+    assert body["by_rule"]["duplicate_statement"] == 0, "既有候选不得重复登记"
+    assert body["by_rule"]["cross_source_conflict"] == 0
+    assert body["skipped"] >= 0 and body["created"] >= 1
+
+    third = api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"])
+    assert third.status_code == 200
+    body3 = third.json()
+    assert body3["created"] == 0, "同候选不得重复登记"
+    assert body3["skipped"] == body3["total_candidates"]
+    assert set(body3["rule_names"]) == {
+        "identifier_validity",
+        "duplicate_statement",
+        "cross_source_conflict",
+    }
+    assert entity_id and value
+
+
+def test_quality_scan_audit_written(api, seeded, auth):
+    import os
+    import sqlite3
+
+    api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"])
+    db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM audit_log WHERE action='evidence.quality_scan'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert row >= 1, "扫描必须写审计日志"

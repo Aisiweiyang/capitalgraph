@@ -16,6 +16,7 @@ import {
   coverageHeadline,
   coverageTimelineOption,
   deltaText,
+  qualityScanText,
   stalenessScanText,
   stalenessSummaryText,
 } from "../evidenceDisplay";
@@ -30,6 +31,7 @@ export function EvidencePage() {
   const [staleness, setStaleness] = useState<EvidenceStalenessOut | null>(null);
   const [quality, setQuality] = useState<EvidenceQualityOut | null>(null);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [qualityScanMsg, setQualityScanMsg] = useState<string | null>(null);
   const [documents, setDocuments] = useState<EvidenceDocumentsOut | null>(null);
   const [lookup, setLookup] = useState<EvidenceLookupOut | null>(null);
   const [query, setQuery] = useState(deepLink);
@@ -98,6 +100,16 @@ export function EvidencePage() {
       setScanMsg(stalenessScanText(out));
     } catch (err) {
       setScanMsg(err instanceof Error ? err.message : "扫描入库失败");
+    }
+  }
+
+  async function runQualityScan() {
+    setQualityScanMsg(null);
+    try {
+      const out = await api.evidenceQualityScan();
+      setQualityScanMsg(qualityScanText(out));
+    } catch (err) {
+      setQualityScanMsg(err instanceof Error ? err.message : "登记失败");
     }
   }
 
@@ -356,6 +368,22 @@ export function EvidencePage() {
               未发现跨连接器取值冲突。
             </div>
           )}
+          <div className="controls">
+            {hasRole("analyst") ? (
+              <button onClick={() => void runQualityScan()} data-testid="quality-scan">
+                登记复核（有效性/唯一性/一致性）
+              </button>
+            ) : (
+              <span className="muted" data-testid="quality-scan-hint">
+                登录 analyst 后可将三类候选幂等登记进复核通道
+              </span>
+            )}
+            {qualityScanMsg && (
+              <span className="muted" data-testid="quality-scan-result">
+                {qualityScanMsg}
+              </span>
+            )}
+          </div>
           <details className="assumptions">
             <summary>口径说明（{quality.algorithm_version}）</summary>
             <ul>

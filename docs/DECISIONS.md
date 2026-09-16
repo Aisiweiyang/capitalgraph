@@ -323,3 +323,10 @@ freshness 检查、Deequ 的 Completeness/ Freshness analyzers 同属"阈值 + �
 
 **前端**：证据工作台"质量总览"区（五计数卡 + 候选表/空态 + 口径说明），
 候选行可一键把声明 ID 填入反查框（与 v0.5 deep-link 同一交互）。
+
+**修订（2026-09-16，v0.8）：统一登记端点落地**。原"写通道不做扩展"调整为：新增
+POST /api/v1/evidence/quality/scan（analyst+）一次性把三类候选幂等登记进复核通道——
+这正是在原 ADR 约束内（复用 QualityIssue、rule_name 按维度取值、不建每规则独立端点）。
+幂等键：有效性按 (rule_name, entity_id)，唯一性/一致性按组代表声明（组内最小
+statement_id）与 (rule_name, statement_id)；detail_json 存完整组信息与算法版本。
+时效规则继续走既有 /staleness/scan，不在本端点重复。

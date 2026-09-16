@@ -214,6 +214,129 @@ async def evidence_quality_overview(
     }
 
 
+@router.post("/quality/scan")
+async def evidence_quality_scan(
+    user: AnalystUser,
+    repo: Repo,
+    ctx: Ctx,
+    at: date | None = None,
+):
+    """把有效性/唯一性/跨源一致性候选幂等登记进复核通道（ADR-021 统一登记端点）。
+
+    rule_name 按维度取值（identifier_validity/duplicate_statement/cross_source_conflict）；
+    实体级按 entity_id 幂等，声明级按组代表声明幂等；二扫只跳过。写审计。
+    """
+    at_date = at or date.today()
+    key_rows = [
+        StatementKeyRow(
+            statement_id=r.statement_id,
+            subject_id=r.subject_id,
+            object_id=r.object_id,
+            predicate=r.predicate,
+            connector_id=r.connector_id,
+            share_ratio_scaled=r.share_ratio_scaled,
+        )
+        for r in await repo.quality_statement_rows(at_date)
+    ]
+    validity = identifier_validity(
+        [
+            IdentifierRow(entity_id=r.entity_id, namespace=r.namespace, value=r.value)
+            for r in await repo.identifier_rows()
+        ]
+    )
+    uniqueness = duplicate_statements(key_rows)
+    consistency = cross_source_conflicts(key_rows)
+
+    created = skipped = 0
+    by_rule = {"identifier_validity": 0, "duplicate_statement": 0, "cross_source_conflict": 0}
+
+    for item in validity["invalid"]:
+        if await repo.open_quality_issue_for_entity("identifier_validity", item["entity_id"]):
+            skipped += 1
+            continue
+        await repo.add_quality_issue(
+            "identifier_validity",
+            entity_id=item["entity_id"],
+            detail={
+                "at": at_date.isoformat(),
+                "value": item["value"],
+                "algorithm_version": QUALITY_VERSION,
+            },
+        )
+        by_rule["identifier_validity"] += 1
+        created += 1
+
+    for group in uniqueness["groups"]:
+        rep = min(group["statement_ids"])
+        if await repo.open_quality_issue("duplicate_statement", rep):
+            skipped += 1
+            continue
+        await repo.add_quality_issue(
+            "duplicate_statement",
+            entity_id=group["subject_id"],
+            statement_id=rep,
+            detail={
+                "at": at_date.isoformat(),
+                "subject_id": group["subject_id"],
+                "object_id": group["object_id"],
+                "predicate": group["predicate"],
+                "statement_ids": group["statement_ids"],
+                "algorithm_version": QUALITY_VERSION,
+            },
+        )
+        by_rule["duplicate_statement"] += 1
+        created += 1
+
+    for conflict in consistency["conflicts"]:
+        rep = min(v["statement_id"] for v in conflict["values"])
+        if await repo.open_quality_issue("cross_source_conflict", rep):
+            skipped += 1
+            continue
+        await repo.add_quality_issue(
+            "cross_source_conflict",
+            entity_id=conflict["subject_id"],
+            statement_id=rep,
+            detail={
+                "at": at_date.isoformat(),
+                "subject_id": conflict["subject_id"],
+                "object_id": conflict["object_id"],
+                "predicate": conflict["predicate"],
+                "values": conflict["values"],
+                "algorithm_version": QUALITY_VERSION,
+            },
+        )
+        by_rule["cross_source_conflict"] += 1
+        created += 1
+
+    total_candidates = (
+        len(validity["invalid"]) + len(uniqueness["groups"]) + len(consistency["conflicts"])
+    )
+    await repo.audit(
+        actor=user["username"],
+        action="evidence.quality_scan",
+        request_id=ctx.request_id,
+        result="ok",
+        detail={
+            "at": at_date.isoformat(),
+            "candidates": total_candidates,
+            "created": created,
+            "skipped": skipped,
+        },
+    )
+    return {
+        "at": at_date.isoformat(),
+        "total_candidates": total_candidates,
+        "created": created,
+        "skipped": skipped,
+        "by_rule": by_rule,
+        "rule_names": [
+            "identifier_validity",
+            "duplicate_statement",
+            "cross_source_conflict",
+        ],
+    }
+
+
 @router.get("/staleness")
 async def evidence_staleness(
     _user: ViewerUser,

@@ -151,3 +151,15 @@ CapitalGraph CN 改在独立子目录 `资本图谱/` 内实施（见 ADR-010）
 - [x] 性能基线（2008 声明：/evidence/quality p50 53.4ms / max 55.8ms，护栏 20s）
 - [x] 文档同步：ADR-021、ARCHITECTURE、DATA_MODEL、USER_GUIDE、TEST_REPORT、
       DELIVERY、README、PROJECT_PLAN v0.7 验收清单
+
+## v0.8 计划与验收清单（质量登记闭环）
+
+目标：把 v0.7 三条质量规则从"只呈现"升级到"可处置"——统一登记复核通道
+（ADR-021 修订），完成"提示 → 登记 → 人工复核"闭环。
+
+- [x] POST /evidence/quality/scan（analyst+）：三类候选幂等登记 QualityIssue，
+      rule_name 按维度取值；实体级/组代表两级幂等键；写审计
+- [x] API 测试 3 项：RBAC 401/403、注入新实体非法 uscc 增量登记 + 二扫幂等、审计落库
+- [x] 前端质量总览区"登记复核"按钮（analyst）/角色提示（viewer）+ 结果文案 helper 单测
+- [x] E2E 21→22 项：analyst 登记按钮端到端（created→skipped，与库状态无关可重复）
+- [x] 既有测试不回归：后端 239→242 项全绿（94.8%）；前端 60→61；E2E 22 项全绿

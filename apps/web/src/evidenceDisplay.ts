@@ -5,6 +5,7 @@ import type {
   CoverageTimelineRow,
   EvidenceCoverageOut,
   EvidenceStalenessOut,
+  QualityScanOut,
   StalenessScanOut,
 } from "./api";
 import type { EChartsCoreOption } from "./components/EChart";
@@ -71,6 +72,10 @@ export function stalenessSummaryText(out: EvidenceStalenessOut): string {
 }
 
 /** 扫描入库结果行：created/skipped 与规则名。 */
+export function qualityScanText(out: QualityScanOut): string {
+  return `已入库 ${out.created} 条（跳过重复 ${out.skipped} 条）· ${out.rule_names.join("/")}`;
+}
+
 export function stalenessScanText(out: StalenessScanOut): string {
   return `已入库 ${out.created} 条（跳过重复 ${out.skipped} 条）· 规则 ${out.rule_name}`;
 }

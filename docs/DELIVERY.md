@@ -274,3 +274,10 @@ OSS_EVALUATION v0.6 增量，2026-09-15 版本核实）。
   created→skipped 端到端，断言与库状态无关可重复执行）；
 - CI frontend job 开启 npm 缓存；registry 运维开关/regions 代码校验补测，
   后端 237→**239 passed / 94.8%**。详见 TEST_REPORT §v0.7.5。
+
+## v0.8 交付（2026-09-16）：质量登记闭环
+
+POST /evidence/quality/scan（analyst+）把有效性/唯一性/跨源一致性候选幂等登记进
+复核通道（rule_name 按维度、实体级/组代表两级幂等键、写审计），工作台质量总览区
+提供"登记复核"入口（viewer 见角色提示）。ADR-021 修订同步。
+实测：后端 **242 passed / 94.8%**，vitest **61**，E2E **22** 全绿。详见 TEST_REPORT §v0.8。

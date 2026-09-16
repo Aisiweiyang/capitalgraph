@@ -107,7 +107,7 @@ describe("deltaText", () => {
 // ---------------- v0.6 切片 B：时效区展示口径（ADR-020）
 
 import type { EvidenceStalenessOut, StalenessScanOut } from "./api";
-import { stalenessScanText, stalenessSummaryText } from "./evidenceDisplay";
+import { qualityScanText, stalenessScanText, stalenessSummaryText } from "./evidenceDisplay";
 
 const staleOut = {
   at: "2024-01-02",
@@ -136,4 +136,20 @@ it("stalenessScanText：入库/跳过计数与规则名", () => {
   expect(stalenessScanText({ ...scan, created: 0, skipped: 1 })).toBe(
     "已入库 0 条（跳过重复 1 条）· 规则 stale_source",
   );
+});
+
+
+describe("qualityScanText", () => {
+  it("登记计数与规则名随文案输出", () => {
+    expect(
+      qualityScanText({
+        at: "2026-09-16",
+        total_candidates: 2,
+        created: 1,
+        skipped: 1,
+        by_rule: { identifier_validity: 1, duplicate_statement: 0, cross_source_conflict: 0 },
+        rule_names: ["identifier_validity", "duplicate_statement", "cross_source_conflict"],
+      }),
+    ).toBe("已入库 1 条（跳过重复 1 条）· identifier_validity/duplicate_statement/cross_source_conflict");
+  });
 });

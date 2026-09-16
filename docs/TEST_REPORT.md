@@ -497,3 +497,19 @@ job 接入 npm 缓存；registry/regions 防御分支补测。基线 v0.7.4：23
 
 - frontend：setup-node 开启 `cache: npm`（锁文件路径 apps/web/package-lock.json）；
 - 核验确认后端 ruff 规则已含 B/SIM/UP/C4 全量族且零告警，无需再收严。
+
+## v0.8 实测记录（2026-09-16，质量登记闭环）
+
+范围：POST /evidence/quality/scan 统一登记端点 + 工作台"登记复核"入口 + 端到端。
+基线 v0.7.5：后端 239 passed / 94.8%，前端 60，E2E 21。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **242 passed / 94.8%**（+3：scan RBAC/幂等增量、审计落库；修复中顺带补 analyst 种子用户） |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 0 errors / **61 passed**（+1 qualityScanText） |
+| `CG_API_PROXY=… npx playwright test` | **22 passed**（+1：analyst 登记按钮端到端 created→skipped，与库状态无关可重复） |
+| ruff / format / mypy / secret_scan / module_graph | 全部通过 |
+
+幂等语义：有效性按实体（同实体多候选只登记一次）、唯一性/一致性按组代表声明
+（组内最小 statement_id）；detail_json 存全组/取值与算法版本；扫描写审计
+action=evidence.quality_scan。
