@@ -22,7 +22,7 @@ from __future__ import annotations
 import csv
 import io
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from cg_domain.enums import ClaimBasis, ControlType, EntityKind, Predicate, RatioUnit
@@ -200,13 +200,13 @@ class CsvFixtureConnector(BaseConnector):
             raise DomainError(f"region_code 非省级行政区划代码: {code}")
         return code
 
-    def _evidence_date(self, row: dict[str, str]) -> date | None:
+    def _evidence_date(self, row: dict[str, str]) -> datetime | None:
         """可选列 evidence_date → 证据快照取证时间（ADR-020 链路）；坏值拒绝该行。"""
         raw = (row.get("evidence_date") or "").strip()
         if not raw:
             return None
         try:
-            return date.fromisoformat(raw)
+            return datetime.fromisoformat(raw)
         except ValueError:
             raise DomainError(f"evidence_date 不是合法日期: {raw}") from None
 
