@@ -792,3 +792,24 @@ resolveQualityIssue 并刷新、detail 内声明 ID 生成证据 deep-link。
 
 实现：api.search 支持 limit/offset；页面"加载更多"按钮按剩余数收敛
 （hits.length < total 时显示），按钮消失即全部加载完毕。
+
+## v0.12.1 维护记录（2026-09-18，检索 URL 同步 + 双重编码修复）
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd apps/web && npx vitest run` | **79 passed**（+1：URL q 参数自动检索） |
+| `CG_API_PROXY=… npx playwright test` | **24 passed**（检索回归修复后全链路通过） |
+| `uv run pytest tests -n auto --dist loadfile` | 261 passed 零回归 |
+| tsc / lint / build / format --check / module_graph | 全部通过 |
+
+### 新增与修复
+
+- **检索词写入 URL**（`/?q=…`，replace 导航）：可分享、刷新保持、与 evidence/events
+  的深链惯例一致；URL 带 q 挂载即自动检索；
+- **修复双重编码回归**：api.search 分页改造时把手动 `encodeURIComponent` 的值放进
+  `URLSearchParams`（toString 二次编码，`%`→`%25`），中文检索零命中的回归被
+  E2E 核心链路首用例逮住——诊断脚本证实 API 收到双重编码串，去除手动编码
+  （URLSearchParams 已负责编码）。
+
+（另：备份审计自我纠错——scripts/backup.sh 实际已覆盖 SQLite 的 VACUUM INTO
+在线快照与 14 份轮换，此前"缺备份工具"判断有误，予以更正。）

@@ -67,3 +67,21 @@ describe("SearchPage 加载更多", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("SearchPage URL 同步", () => {
+  it("URL 带 q 参数时挂载即自动检索并保持查询词", async () => {
+    const { api } = await import("./api");
+    const spy = vi.spyOn(api, "search").mockResolvedValue({
+      total: 1,
+      hits: [{ id: "a", kind: "company", primary_name: "甲公司", score: 1 }],
+    });
+    render(
+      <MemoryRouter initialEntries={["/?q=公司"]}>
+        <SearchPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("甲公司")).toBeTruthy();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("检索关键词")).toHaveValue("公司");
+  });
+});

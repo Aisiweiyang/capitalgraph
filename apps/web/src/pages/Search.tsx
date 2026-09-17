@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, type SearchOut } from "../api";
 
 const KIND_LABEL: Record<string, string> = {
@@ -21,7 +21,8 @@ export function kindLabel(kind: string | null | undefined): string {
 const PAGE_SIZE = 20;
 
 export function SearchPage() {
-  const [query, setQuery] = useState("");
+  const [params, setParams] = useSearchParams();
+  const [query, setQuery] = useState(params.get("q") ?? "");
   const [result, setResult] = useState<SearchOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,6 +33,7 @@ export function SearchPage() {
     if (!query.trim()) return;
     setBusy(true);
     setError(null);
+    setParams(new URLSearchParams({ q: query.trim() }), { replace: true });
     try {
       setResult(await api.search(query.trim(), { limit: PAGE_SIZE }));
       setSearched(true);
@@ -58,8 +60,16 @@ export function SearchPage() {
     }
   }
 
+  const initialQuery = params.get("q") ?? "";
+  const autoRan = useRef(initialQuery === "");
   useEffect(() => {
     document.title = "CapitalGraph CN — 检索";
+    if (initialQuery && !autoRan.current) {
+      autoRan.current = true;
+      void doSearch();
+    }
+    // 仅挂载时执行一次：URL 驱动的后续检索由用户提交触发
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

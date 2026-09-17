@@ -801,7 +801,7 @@ export const api = {
   },
 
   search: (q: string, opts?: { limit?: number; offset?: number; signal?: AbortSignal }) => {
-    const qs = new URLSearchParams({ q: encodeURIComponent(q) });
+    const qs = new URLSearchParams({ q });
     if (opts?.limit != null) qs.set("limit", String(opts.limit));
     if (opts?.offset != null) qs.set("offset", String(opts.offset));
     return request<SearchOut>(`/entities/search?${qs.toString()}`, {
