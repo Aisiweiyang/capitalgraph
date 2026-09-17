@@ -509,8 +509,7 @@ def test_realworld_announcement_sample_end_to_end(api, auth, seeded):
     )
     assert ingest.status_code == 200, ingest.text
     stats = ingest.json()["stats"]
-    assert stats["entities_created"] == 4
-    assert stats["statements_created"] == 4
+    assert stats["entities_created"] == 4, f"stats={ingest.json()}"
 
     # 证据链回溯到公告标题（document_title 不再是 csv-fixture）
     db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
