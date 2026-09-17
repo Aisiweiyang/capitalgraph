@@ -86,6 +86,8 @@ npm run dev                            # CG_API_PROXY=http://127.0.0.1:8301 npm 
 
 | 列 | 必填 | 说明 |
 | --- | --- | --- |
+| `evidence_title` | | 来源公告/文件标题（如巨潮公告标题）。填写后证据链按公告独立归档、标题可见可跳转；示例见 `data/sample/真实公告风格示例.csv` |
+| `evidence_date` | | 公告发布日期（YYYY-MM-DD）。写入证据取证时间，时效规则按此判定；非法日期该行拒绝 |
 | `record_type` | ✅ | `entity`（主体）/ `holding`（持股）/ `control`（控制） |
 | `subject_id/subject_name` | ✅ | 主体方；ID 以 P 开头自动识别为自然人，否则企业 |
 | `subject_uscc` | 可选 | 统一社会信用代码（须过 GB 32100 校验位） |

@@ -3,7 +3,10 @@
 schema contract（15 个必需表头 + 若干可选列；多余列忽略）：
 必需：record_type,subject_id,subject_name,subject_uscc,predicate,object_id,object_name,object_uscc,
      ratio,ratio_unit,valid_from,valid_to,evidence_url,field_path,raw_value
-可选：region_code（6 位省级行政区划代码）、industry（行业名）、amount_wan（金额，万元）
+可选：region_code（6 位省级行政区划代码）、industry（行业名）、amount_wan（金额，万元）、
+     evidence_title（来源公告/文件标题，如巨潮公告标题；空则回落 csv-fixture）、
+     evidence_date（公告发布日期 ISO，接证据快照取证时间 captured_at；空则入库时间兜底；
+     非法日期拒绝该行并留痕）
      ——entity 行与关系行均可携带；关系行自动补建实体时同样继承。
 
 - record_type ∈ {entity, holding, control, guarantee, pledge}
@@ -197,6 +200,16 @@ class CsvFixtureConnector(BaseConnector):
             raise DomainError(f"region_code 非省级行政区划代码: {code}")
         return code
 
+    def _evidence_date(self, row: dict[str, str]) -> date | None:
+        """可选列 evidence_date → 证据快照取证时间（ADR-020 链路）；坏值拒绝该行。"""
+        raw = (row.get("evidence_date") or "").strip()
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            raise DomainError(f"evidence_date 不是合法日期: {raw}") from None
+
     def _statement_row(self, row: dict[str, str]) -> StatementRecord:
         record_type = (row.get("record_type") or "").strip().lower()
         predicate = _PREDICATE_MAP.get(record_type)
@@ -212,11 +225,12 @@ class CsvFixtureConnector(BaseConnector):
         valid_to_raw = (row.get("valid_to") or "").strip()
         valid_to = date.fromisoformat(valid_to_raw) if valid_to_raw else None
         ev = EvidenceRecord(
-            document_title="csv-fixture",
+            document_title=(row.get("evidence_title") or "").strip() or "csv-fixture",
             source_url=(row.get("evidence_url") or "").strip(),
             field_path=(row.get("field_path") or "").strip(),
             raw_value=(row.get("raw_value") or "").strip(),
             normalized_value=(row.get("raw_value") or "").strip(),
+            captured_at=self._evidence_date(row),
         )
         amount_raw = (row.get("amount_wan") or "").strip()
         try:

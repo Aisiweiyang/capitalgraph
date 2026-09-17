@@ -489,3 +489,52 @@ def test_quality_scan_audit_written(api, seeded, auth):
     finally:
         conn.close()
     assert row >= 1, "扫描必须写审计日志"
+
+
+# ---------------------------------------- v0.9 真实公告形态端到端（阶段一原型）
+
+
+def test_realworld_announcement_sample_end_to_end(api, auth, seeded):
+    """巨潮风格公告摘要样例：公告标题进证据链、公告日期进时效、脏 uscc 进有效性候选。"""
+    import os
+    import sqlite3
+
+    ingest = api.post(
+        "/api/v1/ingest/runs",
+        json={
+            "connector": "csv",
+            "params": {"path": "data/sample/真实公告风格示例.csv"},
+        },
+        headers=auth["admin"],
+    )
+    assert ingest.status_code == 200, ingest.text
+    stats = ingest.json()["stats"]
+    assert stats["entities_created"] == 4
+    assert stats["statements_created"] == 4
+
+    # 证据链回溯到公告标题（document_title 不再是 csv-fixture）
+    db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
+    conn = sqlite3.connect(db_path)
+    try:
+        sid = conn.execute("SELECT s.id FROM relationship_statements s LIMIT 1").fetchone()[0]
+        titles = [
+            r[0]
+            for r in conn.execute(
+                "SELECT DISTINCT d.title FROM source_documents d JOIN source_snapshots sn "
+                "ON sn.document_id = d.id"
+            ).fetchall()
+        ]
+    finally:
+        conn.close()
+    assert any("年度报告" in t or "季度报告" in t for t in titles), "来源文档应携带公告标题"
+    assert sid
+
+    # 时效规则吃真实公告日期：公告约 1.4 年前发布，1 年阈值下应出现候选
+    stale = api.get(
+        "/api/v1/evidence/staleness", params={"years": 1}, headers=auth["viewer"]
+    ).json()
+    assert stale["stale_count"] >= 1
+
+    # 质量有效性：样例的编造 uscc 校验位非法（真实形态脏数据演示）
+    quality = api.get("/api/v1/evidence/quality", headers=auth["viewer"]).json()
+    assert quality["validity"]["invalid_count"] >= 2

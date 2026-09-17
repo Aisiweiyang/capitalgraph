@@ -13,6 +13,7 @@ import hashlib
 import json
 
 from cg_domain.enums import IngestionStatus
+from cg_domain.models import DocumentRef
 from cg_domain.repo import Repository
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,25 +52,52 @@ async def ingest_connector_result(
 
     # 证据链：登记文档与快照（哈希优先；原文按配置落对象存储）
     doc_ids: dict[str, str] = {}
+    doc_by_key: dict[tuple[str, str], str] = {}
     for doc in result.documents:
         stored = await repo.register_document(doc)
         doc_ids[doc.model_dump_json()] = stored.id
+        doc_by_key.setdefault((doc.title, doc.source_url), stored.id)
 
     default_doc_id = next(iter(doc_ids.values()), None)
     fragment_cache: dict[str, str] = {}
+    source_doc_cache: dict[tuple[str, str], str] = {}
+
+    async def _source_doc(ev) -> str | None:
+        """证据来源文档归档：公告标题非空时按（标题, URL）独立建档（真实公告可回溯）；
+        标题为空回落数据包文档（旧行为）。"""
+        title = (ev.document_title or "").strip()
+        url = (ev.source_url or "").strip()
+        if not title:
+            return default_doc_id
+        key = (title, url)
+        if key not in source_doc_cache:
+            if key in doc_by_key:
+                source_doc_cache[key] = doc_by_key[key]
+            else:
+                stored = await repo.register_document(
+                    DocumentRef(
+                        connector_id=connector.spec().connector_id,
+                        title=title,
+                        source_url=url,
+                    )
+                )
+                doc_by_key[key] = stored.id
+                source_doc_cache[key] = stored.id
+        return source_doc_cache[key]
 
     async def fragment_id(ev) -> str | None:
         cache_key = f"{ev.document_title}|{ev.field_path}|{ev.raw_value}"
         if cache_key in fragment_cache:
             return fragment_cache[cache_key]
-        if default_doc_id is None:
+        doc_id = await _source_doc(ev)
+        if doc_id is None:
             # 显式暴露：声明携带证据但批次未登记来源文档 → 证据链缺失可被质检发现
             stats.issues.append("evidence-missing-document: 批次未登记来源文档，证据片段未入库")
             return None
         content = ev.raw_value.encode("utf-8")
         digest = hashlib.sha256(content).hexdigest()
         snapshot = await repo.add_snapshot(
-            default_doc_id,
+            doc_id,
             digest,
             storage_key=digest if store_raw else None,
             raw_stored=store_raw,

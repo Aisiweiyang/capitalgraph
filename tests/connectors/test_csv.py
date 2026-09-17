@@ -25,6 +25,9 @@ BAD_ROWS_CSV = (
 )
 
 
+NL = chr(10)
+
+
 def write_csv(tmp_path, content: str):
     path = tmp_path / "fixture.csv"
     path.write_text(content, encoding="utf-8")
@@ -269,3 +272,79 @@ def test_csv_pledge_row_parses(tmp_path):
     stmt = next(s for s in result.statements if s.predicate.value == "pledges_shares")
     assert stmt.share_ratio == 40.0
     assert stmt.amount_wan == 3000.0
+
+
+def _write_rows(tmp_path, rows: list[dict[str, str]]):
+    """显式按列名写 CSV，避免手拼逗号串的错位问题。"""
+    import csv
+
+    path = tmp_path / "announcement.csv"
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+    return str(path)
+
+
+def _announcement_row(**overrides) -> dict[str, str]:
+    base = {
+        "record_type": "holding",
+        "subject_id": "P-1",
+        "subject_name": "王某",
+        "subject_uscc": "",
+        "predicate": "holding_shares",
+        "object_id": "C-9",
+        "object_name": "示例真实形态股份有限公司",
+        "object_uscc": "91350100M000100Y1R",
+        "ratio": "30",
+        "ratio_unit": "percent",
+        "valid_from": "2024-05-10",
+        "valid_to": "",
+        "evidence_url": "https://www.cninfo.com.cn/new/disclosure/detail?announcementId=DEMO001",
+        "field_path": "股东增持摘要",
+        "raw_value": "增持 30% 股份",
+        "amount_wan": "",
+        "evidence_title": "股东增持公告（示例，非真实数据）",
+        "evidence_date": "2024-05-12",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_csv_announcement_columns_parse(tmp_path):
+    """真实公告形态（v0.9 阶段一）：公告标题接 document_title、公告日期接 captured_at。"""
+    path = _write_rows(tmp_path, [_announcement_row()])
+    connector = CsvFixtureConnector()
+    (result, issue), *_ = list(connector.fetch(ConnectorContext(params={"path": path})))
+    assert issue is None
+    ev = result.statements[0].evidence[0]
+    assert ev.document_title == "股东增持公告（示例，非真实数据）"
+    assert ev.captured_at is not None and ev.captured_at.date() == date(2024, 5, 12)
+    assert ev.source_url.startswith("https://www.cninfo.com.cn/")
+
+
+def test_csv_announcement_columns_optional_fallback(tmp_path):
+    """两列缺省：行为与旧版完全一致（标题回落 csv-fixture、captured_at 入库时间兜底）。"""
+    path = _write_rows(
+        tmp_path,
+        [_announcement_row(evidence_title="", evidence_date="")],
+    )
+    connector = CsvFixtureConnector()
+    (result, issue), *_ = list(connector.fetch(ConnectorContext(params={"path": path})))
+    assert issue is None
+    ev = result.statements[0].evidence[0]
+    assert ev.document_title == "csv-fixture"
+    assert ev.captured_at is None  # 入库服务以时间兜底
+
+
+def test_csv_bad_evidence_date_rejects_row(tmp_path):
+    """evidence_date 非法日期：拒绝该行并留痕（与可选列坏值同策略）。"""
+    path = _write_rows(
+        tmp_path,
+        [_announcement_row(evidence_date="2024-13-99")],
+    )
+    connector = CsvFixtureConnector()
+    batches = list(connector.fetch(ConnectorContext(params={"path": path})))
+    issues = [i for _, i in batches if i is not None]
+    assert any(i.code == "row_rejected" and "evidence_date" in i.message for i in issues)
+    assert all(not r.statements for r, _ in batches)

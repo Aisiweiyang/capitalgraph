@@ -613,3 +613,30 @@ token 与状态、login 失败状态保持、logout 清空、Provider 外调用�
 | README 快速开始端口 | **缺陷修复**：写的是 5173，vite 实际监听 5273（vite.config.ts），照 README 操作会打开错误地址；已改正。其余文档（USER_GUIDE/PROJECT_GUIDE/TEST_REPORT/DELIVERY）均为 5273 无误 |
 
 后端 245 passed 零回归（全套件含 test_perf.py 持续通过）。
+
+## v0.9 实测记录（2026-09-17，真实数据接入——阶段一原型）
+
+范围：CSV 连接器公告摘要扩展（ADR-022）+ ingest 来源文档归档 + 巨潮风格样例端到端。
+基线 v0.8.4：后端 245，前端 74，E2E 22。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **249 passed / 94.8%**（+4：公告列解析/可选回落/坏日期拒绝/端到端联动），13 项既有 CSV 测试零改动通过 |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 74 passed（前端零改动） |
+| `CG_API_PROXY=… npx playwright test` | **22 passed**（ingest 核心链路改动零波及） |
+| ruff / format / mypy / secret_scan / module_graph | 全部通过 |
+
+### 端到端验证（真实公告形态）
+
+样例 `data/sample/真实公告风格示例.csv`（4 实体/4 声明，字段全部虚构、URL/格式为
+真实巨潮形态）经 POST /ingest/runs 导入后：
+
+- 证据链"来源文档"显示**公告标题**（不再是 csv-fixture）并跳转真实 URL 形态；
+- 公告发布日期写入快照 captured_at——1 年阈值下时效规则对公告日期生效（出现候选）；
+- 编造校验位的 uscc（真实形态脏数据）进入质量有效性候选（invalid_count ≥ 2）；
+- 缺失比例的披露行以显式 NULL 口径入库（绝不补值）。
+
+### 设计决策（ADR-022）
+
+扩展而非新建连接器：两列全部可选、缺省行为与旧版逐字节一致（回落测试断言）；
+ingest 来源文档归档对 synthetic 连接器零行为变化（其标题/URL 与登记文档一致，复用）。
