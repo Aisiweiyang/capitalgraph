@@ -778,3 +778,17 @@ v0.11.2 的处置闭环此前只有 API 级测试；补复核页端到端（anal
 Review 页补组件测试（此前零覆盖）：质量问题登记行渲染、处置按钮调用
 resolveQualityIssue 并刷新、detail 内声明 ID 生成证据 deep-link。
 （fireEvent 与既有测试一致，router 上下文以 MemoryRouter 提供。）
+
+## v0.11.6 维护记录（2026-09-18，检索分页补全，零功能变更外的 UX 补全）
+
+范围：检索页此前显示"共 N 条"却只渲染前 20 条、无翻页手段——相关度排序后更明显。
+补"加载更多"增量分页（对齐异动页模式）。
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd apps/web && npx vitest run` | **78 passed**（+1：分页合并与收敛按钮消失） |
+| `uv run pytest tests -n auto --dist loadfile` | 260 passed 零回归（后端无改动） |
+| tsc / lint / build | 通过 |
+
+实现：api.search 支持 limit/offset；页面"加载更多"按钮按剩余数收敛
+（hits.length < total 时显示），按钮消失即全部加载完毕。

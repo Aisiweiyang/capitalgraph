@@ -18,6 +18,8 @@ export function kindLabel(kind: string | null | undefined): string {
   return KIND_LABEL[kind ?? ""] ?? (kind || "未知");
 }
 
+const PAGE_SIZE = 20;
+
 export function SearchPage() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<SearchOut | null>(null);
@@ -31,10 +33,26 @@ export function SearchPage() {
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.search(query.trim()));
+      setResult(await api.search(query.trim(), { limit: PAGE_SIZE }));
       setSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "检索失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadMore() {
+    if (!result) return;
+    setBusy(true);
+    try {
+      const next = await api.search(query.trim(), {
+        limit: PAGE_SIZE,
+        offset: result.hits.length,
+      });
+      setResult({ ...next, hits: [...result.hits, ...next.hits] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载失败");
     } finally {
       setBusy(false);
     }
@@ -79,6 +97,17 @@ export function SearchPage() {
                   </li>
                 ))}
               </ul>
+              {result.hits.length < result.total && (
+                <button
+                  onClick={() => void loadMore()}
+                  disabled={busy}
+                  data-testid="search-load-more"
+                >
+                  {busy
+                    ? "加载中…"
+                    : `加载更多（剩余 ${result.total - result.hits.length} 条）`}
+                </button>
+              )}
             </>
           )}
         </div>

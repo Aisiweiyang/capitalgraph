@@ -800,8 +800,14 @@ export const api = {
     });
   },
 
-  search: (q: string, signal?: AbortSignal) =>
-    request<SearchOut>(`/entities/search?q=${encodeURIComponent(q)}`, { signal }),
+  search: (q: string, opts?: { limit?: number; offset?: number; signal?: AbortSignal }) => {
+    const qs = new URLSearchParams({ q: encodeURIComponent(q) });
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    if (opts?.offset != null) qs.set("offset", String(opts.offset));
+    return request<SearchOut>(`/entities/search?${qs.toString()}`, {
+      signal: opts?.signal,
+    });
+  },
 
   entity: (id: string) => request<EntityDetail>(`/entities/${id}`),
 
