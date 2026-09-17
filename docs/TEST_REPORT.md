@@ -688,3 +688,14 @@ CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地�
 合计 ≤100%。规则行为正确（如实标记、超额降序），合成器不改（seed=42 载荷锁定），
 作为"候选需人工甄别"的活演示保留。样例数据集同步补一行故意超百（51%+60%=111%），
 端到端断言精确锁定该组合。
+
+## v0.11 实测记录（2026-09-18，中文相关度检索，ADR-003 补记）
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **254 passed / 94.9%**（+5：评分分层 5 项 + API 排序 1 项，既有零回归） |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 74 passed（EntityHit 类型同步） |
+| ruff / format / mypy / secret_scan / module_graph | 全部通过 |
+
+行为验证（seed=42 合成库实测）：检索"有限公司"8 命中全部 score=0.85（包含层）；
+检索"永安"前缀命中 score=0.9 居首；同分按主档名序稳定。

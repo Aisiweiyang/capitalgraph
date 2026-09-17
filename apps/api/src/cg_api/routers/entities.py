@@ -8,6 +8,7 @@ from typing import Annotated
 from cg_domain.enums import EntityKind
 from cg_domain.models import scaled_to_percent
 from cg_domain.orm import Entity, Statement
+from cg_domain.search_rank import score_name_match
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
@@ -62,14 +63,30 @@ async def search_entities(
     offset: int = Query(default=0, ge=0),
 ):
     kinds = [EntityKind(kind)] if kind else None
-    hits, total = await repo.search(q, kinds=kinds, limit=limit, offset=offset)
+    # 相关度排序（ADR-003 补记）：取全部命中评分排序后内存分页；
+    # 候选上限 1000 与 lookup 分批上限同为文档化规模边界
+    all_hits, total = await repo.search(q, kinds=kinds, limit=1000)
+    scored = sorted(
+        ((score_name_match(q, h.primary_name), h) for h in all_hits),
+        key=lambda t: (-t[0], t[1].primary_norm_name),
+    )
+    page = [h for _, h in scored[offset : offset + limit]]
+    relevance_by_id = {h.id: score for score, h in scored}
     if total == 0:
         id_hits = await repo.search_by_identifier(q, limit=limit)
-        hits = id_hits
+        page = id_hits
         total = len(id_hits)
     return SearchOut(
         total=total,
-        hits=[EntityHit(id=h.id, kind=h.kind, primary_name=h.primary_name) for h in hits],
+        hits=[
+            EntityHit(
+                id=h.id,
+                kind=h.kind,
+                primary_name=h.primary_name,
+                score=relevance_by_id.get(h.id),
+            )
+            for h in page
+        ],
     )
 
 

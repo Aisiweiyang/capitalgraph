@@ -4,6 +4,8 @@ export interface EntityHit {
   id: string;
   kind: string;
   primary_name: string;
+  /** 相关度评分（0..1，ADR-003 补记）；标识符回退命中为 1.0。 */
+  score?: number | null;
 }
 
 export interface SearchOut {

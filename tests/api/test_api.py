@@ -382,3 +382,22 @@ def test_rate_limit_honors_forwarded_for_when_trust_proxy():
     finally:
         os.environ.pop("CG_RATE_LIMIT_PER_MINUTE", None)
         os.environ.pop("CG_TRUST_PROXY", None)
+
+
+def test_search_relevance_scoring(api, auth, seeded):
+    """v0.11 相关度检索：score 字段降序、完全/前缀命中居前（ADR-003 补记）。"""
+    out = api.get(
+        "/api/v1/entities/search", params={"q": "有限公司"}, headers=auth["viewer"]
+    ).json()
+    assert out["total"] > 0
+    scores = [h["score"] for h in out["hits"]]
+    assert all(s is not None for s in scores)
+    assert scores == sorted(scores, reverse=True), "命中必须按相关度降序"
+
+    # 前缀命中的实体：score=0.9 应排在纯包含（0.85）之前
+    hits = api.get("/api/v1/entities/search", params={"q": "永安"}, headers=auth["viewer"]).json()[
+        "hits"
+    ]
+    assert hits, "合成库存在永安系公司"
+    assert hits[0]["score"] == 0.9
+    assert hits[0]["primary_name"].startswith("永安")
