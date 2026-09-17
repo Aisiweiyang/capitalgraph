@@ -767,3 +767,14 @@ CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地�
 v0.11.2 的处置闭环此前只有 API 级测试；补复核页端到端（analyst 登录 → 处置按钮 →
 状态 resolved；证据 deep-link 可见）。用例状态无关：库中无 open 登记时只断言渲染，
 可重复执行。
+
+## v0.11.5 维护记录（2026-09-18，复核页组件测试，零功能变更）
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd apps/web && npx vitest run` | **77 passed**（+3：Review 页组件测试） |
+| `uv run pytest tests -n auto --dist loadfile` | 260 passed 零回归 |
+
+Review 页补组件测试（此前零覆盖）：质量问题登记行渲染、处置按钮调用
+resolveQualityIssue 并刷新、detail 内声明 ID 生成证据 deep-link。
+（fireEvent 与既有测试一致，router 上下文以 MemoryRouter 提供。）
