@@ -1,0 +1,12 @@
+record_type,subject_id,subject_name,subject_uscc,region_code,industry,predicate,object_id,object_name,object_uscc,ratio,ratio_unit,valid_from,valid_to,evidence_url,field_path,raw_value,amount_wan
+entity,C-0001,示例控股集团有限公司,91110000EXAMPLE0011,110000,金融业,,,,,,,,,,,,,
+entity,C-0002,示例科技有限公司,,320000,科学研究和技术服务业,,,,,,,,,,,,,
+entity,C-0003,示例智造股份有限公司,,330000,制造业,,,,,,,,,,,,,
+entity,P-0001,张示例,,,,,,,,,,,,,
+entity,P-0002,李示例,,,,,,,,,,,,,
+holding,P-0001,张示例,,440000,,h0,C-0001,示例控股集团有限公司,,40.00,percent,2020-01-01,,https://example.com/evidence-1,row[6].ratio,40.00%,1200.00
+holding,C-0001,示例控股集团有限公司,,110000,,h1,C-0002,示例科技有限公司,,100.00,percent,2021-06-30,,https://example.com/evidence-2,row[7].ratio,100%,5000.00
+holding,C-0001,示例控股集团有限公司,,110000,,h2,C-0003,示例智造股份有限公司,,55.50,percent,2022-03-01,,https://example.com/evidence-3,row[8].ratio,55.50,8000.00
+holding,C-0002,示例科技有限公司,,320000,,h3,C-0003,示例智造股份有限公司,,15.00,percent,2023-01-01,,https://example.com/evidence-4,row[9].ratio,15.00,600.00
+control,C-0001,示例控股集团有限公司,,110000,,c0,C-0002,示例科技有限公司,,,percent,2021-06-30,,https://example.com/evidence-5,row[10].control,是,
+control,P-0002,李示例,,330000,,c1,C-0003,示例智造股份有限公司,,,percent,2019-05-01,,https://example.com/evidence-6,row[11].control,是,
