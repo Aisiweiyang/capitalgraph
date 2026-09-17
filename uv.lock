@@ -233,7 +233,7 @@ wheels = [
 
 [[package]]
 name = "capitalgraph"
-version = "0.1.0"
+version = "0.11.0"
 source = { virtual = "." }
 dependencies = [
     { name = "cg-api" },
@@ -372,7 +372,7 @@ wheels = [
 
 [[package]]
 name = "cg-api"
-version = "0.1.0"
+version = "0.11.0"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "aiosqlite" },

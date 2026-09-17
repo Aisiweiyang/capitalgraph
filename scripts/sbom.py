@@ -79,7 +79,7 @@ def main() -> int:
     }
     out = ROOT / "docs" / "SBOM.cdx.json"
     out.write_text(json.dumps(sbom, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"SBOM 写入 {out}：{len(components)} 个组件")
+    print(f"SBOM 写入 {out}：{len(components)} 个组件", file=sys.stderr)
     return 0
 
 

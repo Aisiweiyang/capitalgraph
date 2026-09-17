@@ -401,3 +401,9 @@ def test_search_relevance_scoring(api, auth, seeded):
     assert hits, "合成库存在永安系公司"
     assert hits[0]["score"] == 0.9
     assert hits[0]["primary_name"].startswith("永安")
+
+
+def test_api_version_bumped(api):
+    """版本号真实性护栏：应用版本必须与仓库版本一致（防止再次过时为 0.1.0）。"""
+    health = api.get("/api/v1/health").json()
+    assert health["version"] == "0.11.0"

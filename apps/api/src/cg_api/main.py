@@ -114,7 +114,7 @@ async def _lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="CapitalGraph CN API",
-        version="0.1.0",
+        version="0.11.0",
         description="中国企业资本关系与股权穿透研究平台（结果为候选，不构成法律认定）",
         docs_url=f"{API_PREFIX}/docs",
         openapi_url=f"{API_PREFIX}/openapi.json",

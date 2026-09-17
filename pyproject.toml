@@ -1,6 +1,6 @@
 [project]
 name = "capitalgraph"
-version = "0.1.0"
+version = "0.11.0"
 description = "CapitalGraph CN —— 中国企业资本关系、股权穿透与证据可视化研究平台"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -158,34 +158,6 @@ class OpsRepository:
         await self.session.flush()
         return issue
 
-    async def open_quality_issue(self, rule_name: str, statement_id: str) -> QualityIssue | None:
-        """同规则同声明的 open 标记（扫描类规则幂等入库的去重依据）。"""
-        row = await self.session.execute(
-            select(QualityIssue)
-            .where(
-                QualityIssue.rule_name == rule_name,
-                QualityIssue.statement_id == statement_id,
-                QualityIssue.status == "open",
-            )
-            .limit(1)
-        )
-        return row.scalars().first()
-
-    async def open_quality_issue_for_entity(
-        self, rule_name: str, entity_id: str
-    ) -> QualityIssue | None:
-        """同规则同实体的 open 标记（实体级规则幂等入库的去重依据）。"""
-        row = await self.session.execute(
-            select(QualityIssue)
-            .where(
-                QualityIssue.rule_name == rule_name,
-                QualityIssue.entity_id == entity_id,
-                QualityIssue.status == "open",
-            )
-            .limit(1)
-        )
-        return row.scalars().first()
-
     async def add_risk_flag(
         self,
         flag_type: str,

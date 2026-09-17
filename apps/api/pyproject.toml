@@ -1,6 +1,6 @@
 [project]
 name = "cg-api"
-version = "0.1.0"
+version = "0.11.0"
 description = "FastAPI 服务：检索、详情、穿透、时间点、证据、复核、RBAC、审计"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }

@@ -66,6 +66,9 @@ label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted)
 .sev-error { background: #fde8e8; color: var(--danger); }
 
 .table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+/* 窄屏：宽表横向滚动而非挤压换行 */
+.table-wrap { overflow-x: auto; }
+.table-wrap .table { min-width: 560px; }
 .table th, .table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
 .table th { background: #f0f4f9; font-size: 12px; color: var(--muted); }
 .table.compact th, .table.compact td { padding: 4px 8px; font-size: 12px; }
@@ -231,6 +234,12 @@ button, .header nav a { transition: background-color 0.15s ease, color 0.15s eas
 }
 
 /* 无障碍：用户偏好减弱动效时全部退化为瞬时 */
+@media (max-width: 640px) {
+  .main { padding: 12px; }
+  .header { padding: 8px 12px; flex-wrap: wrap; }
+  .stat-cards { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
