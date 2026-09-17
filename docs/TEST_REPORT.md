@@ -640,3 +640,11 @@ token 与状态、login 失败状态保持、logout 清空、Provider 外调用�
 
 扩展而非新建连接器：两列全部可选、缺省行为与旧版逐字节一致（回落测试断言）；
 ingest 来源文档归档对 synthetic 连接器零行为变化（其标题/URL 与登记文档一致，复用）。
+
+### CI 插曲与历史缺陷修复（.gitignore）
+
+首两次 CI 失败连环揭出：① evidence_date 返回类型应为 datetime（CI mypy 抓到，本地
+验证串被 format 失败中断漏跑 mypy——流程教训：改动后必须原样重跑完整命令集）；
+② 端到端 file_not_found 的根因是 **.gitignore 的 data/ 规则把整个 data/sample 忽略**——
+CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地存在、清洁环境缺失），
+本轮新样例同样被吞。已改为 `data/*` + `!data/sample/` 白名单，模板与样例随仓库分发。
