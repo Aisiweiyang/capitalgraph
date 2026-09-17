@@ -717,3 +717,23 @@ CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地�
   v0.9/v0.10/v0.11 三行；README 功能行补交叉验证与相关度检索；
 - Search 页结果行展示相关度百分比（score×100 取整，仅含 SQL 命中）；
 - v07-quality.spec 卡数断言 5→6（v0.10 加第六卡时遗漏的 E2E 断言，本轮全量跑出）。
+
+## v0.11.2 维护记录（2026-09-18，质量登记处置闭环，零功能面变更外的补全）
+
+范围：补全质量治理的最后一环——登记的 QualityIssue 此前**只能看不能关**
+（复核页只读展示，无处置端点/按钮），队列只进不出。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests -n auto --dist loadfile` | **260 passed** 零回归（+1：登记→关闭→再扫描不重复提醒） |
+| `CG_API_PROXY=… npx playwright test` | **22 passed** |
+| tsc / lint / vitest / mypy / ruff | 全部通过 |
+
+### 处置闭环
+
+- 新增 POST /ops/quality/issues/{id}/resolve（analyst+）：status→resolved，
+  甄别结论写进 detail（resolved_note/resolved_by/resolved_at，append 语义）+ 审计；
+- **扫描幂等语义升级**：去重从"存在 open 登记"改为"存在任意状态登记"——
+  已处置的候选不再重复提醒（人工看过说"接受现状"，数据不变就不该再扰）；
+- 复核页数据质量问题表增加状态列与 analyst 处置按钮（备注输入）；
+- 后端 259→**260 passed**。

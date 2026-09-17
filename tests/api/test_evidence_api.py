@@ -549,3 +549,44 @@ def test_realworld_announcement_sample_end_to_end(api, auth, seeded):
     ]
     assert len(target) == 1, "样例注入的 51%+60% 超百组合必须恰好被标记"
     assert len(target[0]["statement_ids"]) == 2
+
+def test_quality_issue_resolve_and_rescan_skips(api, seeded, auth):
+    """处置闭环：登记 → analyst 关闭 → 再扫描不再重复提醒（已处置不扰）。"""
+    _inject_bad_identifier(api)
+    first = api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"]).json()
+    assert first["by_rule"]["identifier_validity"] >= 1
+
+    import os
+    import sqlite3
+
+    db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT id FROM quality_issues WHERE rule_name='identifier_validity' "
+            "AND status='open' ORDER BY detected_at DESC LIMIT 1"
+        ).fetchone()
+        issue_id = row[0]
+    finally:
+        conn.close()
+
+    # viewer 不能处置
+    assert (
+        api.post(
+            f"/api/v1/quality/issues/{issue_id}/resolve",
+            json={"note": "误报"},
+            headers=auth["viewer"],
+        ).status_code
+        == 403
+    )
+    resolved = api.post(
+        f"/api/v1/quality/issues/{issue_id}/resolve",
+        json={"note": "人工甄别：同名不同码，需上游核对"},
+        headers=auth["analyst"],
+    )
+    assert resolved.status_code == 200
+    assert resolved.json()["status"] == "resolved"
+
+    # 再扫描：已处置的候选不再重复提醒
+    third = api.post("/api/v1/evidence/quality/scan", headers=auth["analyst"]).json()
+    assert third["by_rule"]["identifier_validity"] == 0, "已处置候选不得重复登记"

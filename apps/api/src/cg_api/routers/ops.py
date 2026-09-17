@@ -84,6 +84,28 @@ async def resolve_review(
     return {"id": item.id, "status": item.status}
 
 
+@router.post("/quality/issues/{issue_id}/resolve")
+async def resolve_quality_issue(
+    issue_id: str,
+    body: ReviewResolveIn,
+    repo: Repo,
+    user: AnalystUser,
+    ctx: Ctx,
+):
+    """人工处置质量登记：关闭并记录复核结论（审计留痕）。"""
+    issue = await repo.resolve_quality_issue(issue_id, body.note, user["username"])
+    if issue is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "质量登记不存在")
+    await repo.audit(
+        actor=user["username"],
+        action="quality_issue.resolved",
+        request_id=ctx.request_id,
+        result="ok",
+        detail={"issue_id": issue_id, "note": body.note},
+    )
+    return {"id": issue.id, "status": issue.status}
+
+
 @router.get("/quality/issues")
 async def quality_issues(repo: Repo, _user: ViewerUser):
     from cg_domain.orm import QualityIssue

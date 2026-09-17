@@ -874,6 +874,12 @@ export const api = {
       body: JSON.stringify({ note }),
     }),
 
+  resolveQualityIssue: (id: string, note: string) =>
+    request<{ id: string; status: string }>(`/quality/issues/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+
   qualityIssues: () =>
     request<
       {
@@ -881,6 +887,7 @@ export const api = {
         rule_name: string;
         severity: string;
         entity_id: string | null;
+        status: string;
         detail: Record<string, unknown>;
       }[]
     >("/quality/issues"),

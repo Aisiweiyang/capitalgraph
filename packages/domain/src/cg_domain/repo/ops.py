@@ -94,6 +94,50 @@ class OpsRepository:
 
     # ------------------------------------------------------------- 质量与风险
 
+    async def has_quality_issue(self, rule_name: str, statement_id: str) -> bool:
+        """同规则同声明存在任意状态登记（扫描去重：已处置的候选不再重复提醒）。"""
+        row = await self.session.execute(
+            select(QualityIssue.id)
+            .where(
+                QualityIssue.rule_name == rule_name,
+                QualityIssue.statement_id == statement_id,
+            )
+            .limit(1)
+        )
+        return row.scalar_one_or_none() is not None
+
+    async def has_quality_issue_for_entity(self, rule_name: str, entity_id: str) -> bool:
+        """实体级去重：同规则同实体存在任意状态登记。"""
+        row = await self.session.execute(
+            select(QualityIssue.id)
+            .where(
+                QualityIssue.rule_name == rule_name,
+                QualityIssue.entity_id == entity_id,
+            )
+            .limit(1)
+        )
+        return row.scalar_one_or_none() is not None
+
+    async def resolve_quality_issue(
+        self, issue_id: str, note: str, actor: str
+    ) -> QualityIssue | None:
+        """人工处置：关闭 issue 并把结论写进 detail（append 语义，原始内容保留）。"""
+        import json as _json
+        from datetime import UTC
+        from datetime import datetime as _dt
+
+        issue = await self.session.get(QualityIssue, issue_id)
+        if issue is None:
+            return None
+        issue.status = "resolved"
+        detail = _json.loads(issue.detail_json or "{}")
+        detail["resolved_note"] = note
+        detail["resolved_by"] = actor
+        detail["resolved_at"] = _dt.now(UTC).isoformat()
+        issue.detail_json = _json.dumps(detail, ensure_ascii=False, default=str)
+        await self.session.flush()
+        return issue
+
     async def add_quality_issue(
         self,
         rule_name: str,

@@ -8,11 +8,18 @@ export function ReviewPage() {
   const auth = useAuth();
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [issues, setIssues] = useState<
-    { id: string; rule_name: string; severity: string; entity_id: string | null }[] | null
+    {
+      id: string;
+      rule_name: string;
+      severity: string;
+      entity_id: string | null;
+      status: string;
+    }[] | null
   >(null);
   const [flags, setFlags] = useState<RiskFlagOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<Record<string, string>>({});
+  const [qNote, setQNote] = useState<Record<string, string>>({});
 
   async function refresh() {
     try {
@@ -30,6 +37,11 @@ export function ReviewPage() {
 
   async function resolve(id: string) {
     await api.resolveReview(id, note[id] ?? "已确认");
+    await refresh();
+  }
+
+  async function resolveIssue(id: string) {
+    await api.resolveQualityIssue(id, qNote[id] ?? "已甄别");
     await refresh();
   }
 
@@ -159,6 +171,8 @@ export function ReviewPage() {
               <th>规则</th>
               <th>严重度</th>
               <th>实体</th>
+              <th>状态</th>
+              <th>处置</th>
             </tr>
           </thead>
           <tbody>
@@ -169,6 +183,23 @@ export function ReviewPage() {
                   <span className={`tag sev-${q.severity}`}>{q.severity}</span>
                 </td>
                 <td>{q.entity_id?.slice(0, 8) ?? "—"}</td>
+                <td>
+                  <span className={`tag status-${q.status}`}>{q.status}</span>
+                </td>
+                <td>
+                  {q.status === "open" && auth.hasRole("analyst") ? (
+                    <div className="row">
+                      <input
+                        placeholder="甄别结论"
+                        value={qNote[q.id] ?? ""}
+                        onChange={(e) => setQNote({ ...qNote, [q.id]: e.target.value })}
+                      />
+                      <button onClick={() => void resolveIssue(q.id)}>标记已处理</button>
+                    </div>
+                  ) : (
+                    <span className="muted">{q.status}</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

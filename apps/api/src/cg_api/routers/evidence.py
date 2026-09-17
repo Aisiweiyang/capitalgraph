@@ -261,7 +261,7 @@ async def evidence_quality_scan(
     }
 
     for item in validity["invalid"]:
-        if await repo.open_quality_issue_for_entity("identifier_validity", item["entity_id"]):
+        if await repo.has_quality_issue_for_entity("identifier_validity", item["entity_id"]):
             skipped += 1
             continue
         await repo.add_quality_issue(
@@ -278,7 +278,7 @@ async def evidence_quality_scan(
 
     for group in uniqueness["groups"]:
         rep = min(group["statement_ids"])
-        if await repo.open_quality_issue("duplicate_statement", rep):
+        if await repo.has_quality_issue("duplicate_statement", rep):
             skipped += 1
             continue
         await repo.add_quality_issue(
@@ -299,7 +299,7 @@ async def evidence_quality_scan(
 
     for group in ratio_sum["conflicts"]:
         rep = min(group["statement_ids"])
-        if await repo.open_quality_issue("ratio_sum_conflict", rep):
+        if await repo.has_quality_issue("ratio_sum_conflict", rep):
             skipped += 1
             continue
         await repo.add_quality_issue(
@@ -319,7 +319,7 @@ async def evidence_quality_scan(
 
     for conflict in consistency["conflicts"]:
         rep = min(v["statement_id"] for v in conflict["values"])
-        if await repo.open_quality_issue("cross_source_conflict", rep):
+        if await repo.has_quality_issue("cross_source_conflict", rep):
             skipped += 1
             continue
         await repo.add_quality_issue(
@@ -427,7 +427,7 @@ async def evidence_staleness_scan(
     )
     created = skipped = 0
     for cand in report["stale_candidates"]:
-        if await repo.open_quality_issue("stale_source", cand["statement_id"]) is not None:
+        if await repo.has_quality_issue("stale_source", cand["statement_id"]):
             skipped += 1
             continue
         await repo.add_quality_issue(
