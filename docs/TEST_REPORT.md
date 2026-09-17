@@ -813,3 +813,14 @@ resolveQualityIssue 并刷新、detail 内声明 ID 生成证据 deep-link。
 
 （另：备份审计自我纠错——scripts/backup.sh 实际已覆盖 SQLite 的 VACUUM INTO
 在线快照与 14 份轮换，此前"缺备份工具"判断有误，予以更正。）
+
+## v0.12.2 维护记录（2026-09-18，安全巡检复跑 + 版本统一，零功能变更）
+
+| 项 | 结果 |
+| --- | --- |
+| bandit（packages/apps/workers） | 0 告警 |
+| npm audit --audit-level=high | 0 vulnerabilities |
+| uvx pip-audit | No known vulnerabilities |
+| workspace 包版本统一 | 6 包全部 0.11.0（原 5 个 0.1.0），SBOM 重生成（173 组件合法 JSON） |
+| `.env.example` 补加载方式 | uvicorn `--env-file` 或环境注入（项目用 os.environ 直读，.env 需显式加载） |
+| `uv run pytest tests -n auto` | 261 passed 零回归 |

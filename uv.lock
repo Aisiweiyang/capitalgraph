@@ -414,7 +414,7 @@ provides-extras = ["postgres"]
 
 [[package]]
 name = "cg-capital-graph"
-version = "0.1.0"
+version = "0.11.0"
 source = { editable = "packages/capital_graph" }
 dependencies = [
     { name = "cg-domain" },
@@ -425,7 +425,7 @@ requires-dist = [{ name = "cg-domain", editable = "packages/domain" }]
 
 [[package]]
 name = "cg-connectors"
-version = "0.1.0"
+version = "0.11.0"
 source = { editable = "packages/connectors" }
 dependencies = [
     { name = "cg-domain" },
@@ -445,7 +445,7 @@ provides-extras = ["http"]
 
 [[package]]
 name = "cg-domain"
-version = "0.1.0"
+version = "0.11.0"
 source = { editable = "packages/domain" }
 dependencies = [
     { name = "pydantic" },
@@ -471,7 +471,7 @@ provides-extras = ["postgres", "sqlite"]
 
 [[package]]
 name = "cg-entity-resolution"
-version = "0.1.0"
+version = "0.11.0"
 source = { editable = "packages/entity_resolution" }
 dependencies = [
     { name = "cg-domain" },
@@ -482,7 +482,7 @@ requires-dist = [{ name = "cg-domain", editable = "packages/domain" }]
 
 [[package]]
 name = "cg-workers"
-version = "0.1.0"
+version = "0.11.0"
 source = { editable = "workers" }
 dependencies = [
     { name = "cg-connectors" },

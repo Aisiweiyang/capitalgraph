@@ -1,6 +1,6 @@
 [project]
 name = "cg-entity-resolution"
-version = "0.1.0"
+version = "0.11.0"
 description = "实体解析：名称/标识符规范化、USCC 校验、候选评分、阈值决策与记录"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
