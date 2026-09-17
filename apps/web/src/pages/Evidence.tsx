@@ -226,7 +226,17 @@ export function EvidencePage() {
                       <td>{r.year}</td>
                       <td>{r.total}</td>
                       <td>{r.missing}</td>
-                      <td>{r.coverage_percent != null ? `${r.coverage_percent}%` : "—"}</td>
+                      <td>
+                        <div className="bar-cell">
+                          <div className="bar-track" aria-hidden="true">
+                            <div
+                              className="bar-fill"
+                              style={{ width: `${r.coverage_percent ?? 0}%` }}
+                            />
+                          </div>
+                          <span>{r.coverage_percent != null ? `${r.coverage_percent}%` : "—"}</span>
+                        </div>
+                      </td>
                       <td>{deltaText(r.delta_vs_prev)}</td>
                     </tr>
                   ))}
@@ -249,26 +259,24 @@ export function EvidencePage() {
             只提示数据现状，不构成数据错误的认定。
           </p>
           <div className="stat-cards" data-testid="quality-counts">
-            <div className="stat-card">
-              <div className="stat-value">{quality.counts.coverage_missing}</div>
-              <div className="stat-label">覆盖率缺失</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{quality.counts.staleness}</div>
-              <div className="stat-label">时效候选</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{quality.counts.validity}</div>
-              <div className="stat-label">标识符无效</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{quality.counts.uniqueness}</div>
-              <div className="stat-label">疑似重复录入</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{quality.counts.consistency}</div>
-              <div className="stat-label">跨源取值冲突</div>
-            </div>
+            {(
+              [
+                ["coverage_missing", "覆盖率缺失"],
+                ["staleness", "时效候选"],
+                ["validity", "标识符无效"],
+                ["uniqueness", "疑似重复录入"],
+                ["consistency", "跨源取值冲突"],
+              ] as const
+            ).map(([key, label]) => (
+              <div
+                key={key}
+                className={`stat-card ${quality.counts[key] > 0 ? "stat-warn" : "stat-ok"}`}
+                title={quality.counts[key] > 0 ? "存在候选，点击下方对应区域查看" : "该维度暂无候选"}
+              >
+                <div className="stat-value">{quality.counts[key]}</div>
+                <div className="stat-label">{label}</div>
+              </div>
+            ))}
           </div>
           {quality.validity.invalid.length > 0 ? (
             <table className="table compact" data-testid="quality-validity-table">

@@ -648,3 +648,24 @@ ingest 来源文档归档对 synthetic 连接器零行为变化（其标题/URL 
 ② 端到端 file_not_found 的根因是 **.gitignore 的 data/ 规则把整个 data/sample 忽略**——
 CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地存在、清洁环境缺失），
 本轮新样例同样被吞。已改为 `data/*` + `!data/sample/` 白名单，模板与样例随仓库分发。
+
+## v0.9.1 维护记录（2026-09-18，可视化表达优化，零功能/零依赖变更）
+
+范围：流向线悬停信息、质量计数卡语义色、覆盖率表格数据条。基线 v0.9：
+后端 249 passed / 94.8%，前端 74，E2E 22。
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 0 errors / 74 passed |
+| `npm run build` | 成功，体积不变 |
+| `CG_API_PROXY=… npx playwright test` | **22 passed**（首轮 2 个未跑为后端冷启动抖动，重跑全绿） |
+| ruff / mypy / secret_scan / module_graph | 通过（后端零改动） |
+
+### 改进清单
+
+- **流向线悬停信息**：弧线 hover 显示"起点 → 终点 / 金额 / 笔数"（数据项携带
+  fromName/toName/amountWan/edgeCount），并加 hover 加粗强调——此前流向线只可看不可读；
+- **质量计数卡语义色**：五维度计数 0 显示正常绿、非 0 显示暖色警示（附悬停说明）——
+  治理状态一眼可读；
+- **覆盖率趋势表格内嵌数据条**：每行覆盖率配渐变条形（width 过渡动画），
+  从纯数字表变为可扫读的图形表。

@@ -252,10 +252,21 @@ export function FlowsPage() {
           animation: false,
           progressive: 0, // 增量渲染层在后台标签页不刷新，禁用以保证离屏/导出可见
           lineStyle: { width: 1.2, opacity: 0.55, curveness: 0.25 },
+          emphasis: { lineStyle: { width: 2.6, opacity: 0.9 } },
+          tooltip: {
+            formatter: (p: { data?: { fromName?: string; toName?: string; amountWan?: number; edgeCount?: number } }) => {
+              const d = p.data ?? {};
+              return `${d.fromName ?? "?"} → ${d.toName ?? "?"}<br/>金额：${fmtWan(d.amountWan ?? 0)} 万元 · ${d.edgeCount ?? 0} 笔`;
+            },
+          } as Record<string, unknown>,
           data: topFlows
             .filter((f) => REGION_CENTROIDS[f.from_region] && REGION_CENTROIDS[f.to_region])
             .map((f) => ({
               coords: [REGION_CENTROIDS[f.from_region], REGION_CENTROIDS[f.to_region]],
+              fromName: regionName(f.from_region),
+              toName: regionName(f.to_region),
+              amountWan: f.amount_wan ?? 0,
+              edgeCount: f.edge_count,
               // 注意：颜色必须放在数据项级，series 级 color 不会传导到线元素
               lineStyle: { width: lineWeight(f), color: lineColor },
             })),

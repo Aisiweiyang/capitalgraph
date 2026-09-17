@@ -238,3 +238,19 @@ button, .header nav a { transition: background-color 0.15s ease, color 0.15s eas
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 质量计数卡语义色：0 = 正常绿，非 0 = 暖色警示 */
+.stat-ok .stat-value { color: #15803d; }
+.stat-warn .stat-value { color: #b45309; }
+
+/* 表格内嵌数据条（覆盖率趋势等） */
+.bar-cell { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+.bar-track {
+  flex: 0 0 72px; height: 8px; border-radius: 4px;
+  background: #e8edf4; overflow: hidden;
+}
+.bar-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #2f6fe4, #4f9cf7);
+  transition: width 0.4s ease;
+}
