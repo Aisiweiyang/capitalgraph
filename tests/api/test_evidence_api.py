@@ -550,6 +550,7 @@ def test_realworld_announcement_sample_end_to_end(api, auth, seeded):
     assert len(target) == 1, "样例注入的 51%+60% 超百组合必须恰好被标记"
     assert len(target[0]["statement_ids"]) == 2
 
+
 def test_quality_issue_resolve_and_rescan_skips(api, seeded, auth):
     """处置闭环：登记 → analyst 关闭 → 再扫描不再重复提醒（已处置不扰）。"""
     _inject_bad_identifier(api)
