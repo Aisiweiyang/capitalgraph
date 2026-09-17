@@ -14,6 +14,7 @@ export function ReviewPage() {
       severity: string;
       entity_id: string | null;
       status: string;
+      detail: Record<string, unknown>;
     }[] | null
   >(null);
   const [flags, setFlags] = useState<RiskFlagOut[] | null>(null);
@@ -172,11 +173,20 @@ export function ReviewPage() {
               <th>严重度</th>
               <th>实体</th>
               <th>状态</th>
+              <th>证据</th>
               <th>处置</th>
             </tr>
           </thead>
           <tbody>
-            {issues.map((q) => (
+            {issues.map((q) => {
+              // deep-link（v0.10）：detail 内声明/关联声明一键打开证据
+              const ids = [
+                ...((q.detail.statement_ids as string[] | undefined) ?? []),
+                ...((q.detail.statement_id as string | undefined)
+                  ? [q.detail.statement_id as string]
+                  : []),
+              ].filter(Boolean);
+              return (
               <tr key={q.id}>
                 <td>{q.rule_name}</td>
                 <td>
@@ -185,6 +195,11 @@ export function ReviewPage() {
                 <td>{q.entity_id?.slice(0, 8) ?? "—"}</td>
                 <td>
                   <span className={`tag status-${q.status}`}>{q.status}</span>
+                </td>
+                <td>
+                  {ids.length > 0 && (
+                    <Link to={`/evidence?statements=${ids.join(",")}`}>证据</Link>
+                  )}
                 </td>
                 <td>
                   {q.status === "open" && auth.hasRole("analyst") ? (
@@ -201,7 +216,8 @@ export function ReviewPage() {
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}

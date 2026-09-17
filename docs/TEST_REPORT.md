@@ -737,3 +737,20 @@ CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地�
   已处置的候选不再重复提醒（人工看过说"接受现状"，数据不变就不该再扰）；
 - 复核页数据质量问题表增加状态列与 analyst 处置按钮（备注输入）；
 - 后端 259→**260 passed**。
+
+## v0.11.3 维护记录（2026-09-18，复核页证据 deep-link + CI 重试策略，零功能变更）
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests -n auto --dist loadfile` | 260 passed 零回归 |
+| `CG_API_PROXY=… npx playwright test` | **22 passed**（后端就绪后完整通过） |
+| tsc / lint / vitest / build | 通过，74 passed |
+
+### 变更
+
+- **复核页质量问题行证据 deep-link**：detail 内 statement_ids/statement_id 拼接
+  证据链接（与 risk_flags 同模式），复核员从质量登记一键跳证据链；
+- **Playwright CI 重试**：`retries: process.env.CI ? 1 : 0`——CI 上冷启动/首查抖动
+  自动重试一次，本地保持 0 快速失败；
+- 本轮执行教训：起后端的命令串把 pytest 与 uvicorn 用 && 连接导致 E2E 先于后端
+  就绪启动——已改为独立后台任务并轮询健康检查。
