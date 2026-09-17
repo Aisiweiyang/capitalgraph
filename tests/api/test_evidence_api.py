@@ -471,6 +471,7 @@ def test_quality_scan_registers_and_is_idempotent(api, seeded, auth):
         "identifier_validity",
         "duplicate_statement",
         "cross_source_conflict",
+        "ratio_sum_conflict",
     }
     assert entity_id and value
 
@@ -509,7 +510,8 @@ def test_realworld_announcement_sample_end_to_end(api, auth, seeded):
     )
     assert ingest.status_code == 200, ingest.text
     stats = ingest.json()["stats"]
-    assert stats["entities_created"] == 4, f"stats={ingest.json()}"
+    assert stats["entities_created"] == 5, f"stats={ingest.json()}"
+    assert stats["statements_created"] == 5
 
     # 证据链回溯到公告标题（document_title 不再是 csv-fixture）
     db_path = os.environ["CG_DATABASE_URL"].split("///", 1)[1]
@@ -537,3 +539,13 @@ def test_realworld_announcement_sample_end_to_end(api, auth, seeded):
     # 质量有效性：样例的编造 uscc 校验位非法（真实形态脏数据演示）
     quality = api.get("/api/v1/evidence/quality", headers=auth["viewer"]).json()
     assert quality["validity"]["invalid_count"] >= 2
+    # 比例合计交叉验证：样例 RL-C002 故意超百（51% + 60% = 111%）；
+    # 合成库股东比例合计不保证 ≤100%，规则会如实标记（生成器特性，非缺陷——
+    # 恰好演示"候选需人工甄别"口径），因此只对样例对象做精确断言
+    target = [
+        c
+        for c in quality["ratio_sum"]["conflicts"]
+        if c["total_percent"] == 111.0 and c["statement_count"] == 2
+    ]
+    assert len(target) == 1, "样例注入的 51%+60% 超百组合必须恰好被标记"
+    assert len(target[0]["statement_ids"]) == 2

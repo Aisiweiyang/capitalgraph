@@ -8,6 +8,7 @@ from cg_capital_graph import (
     cross_source_conflicts,
     duplicate_statements,
     identifier_validity,
+    ratio_sum_conflicts,
 )
 
 
@@ -19,7 +20,7 @@ def _stmt(
     sid: str,
     subject: str = "s1",
     obj: str = "o1",
-    predicate: str = "holds_shares_in",
+    predicate: str = "holds_shares",
     connector: str = "synthetic",
     ratio: int | None = 30_000_000,
 ) -> StatementKeyRow:
@@ -112,3 +113,44 @@ def test_determinism_and_robust_to_input_order():
     ]
     assert cross_source_conflicts(rows) == cross_source_conflicts(list(reversed(rows)))
     assert duplicate_statements(rows) == duplicate_statements(list(reversed(rows)))
+
+
+# ---------------- 交叉验证：比例合计（v0.10）
+
+
+def test_ratio_sum_flags_over_hundred():
+    """同公司 holds_shares 合计 > 100%：数学矛盾候选。"""
+    rows = [
+        _stmt("s1", subject="h1", obj="company", connector="a", ratio=70_000_000),
+        _stmt("s2", subject="h2", obj="company", connector="b", ratio=45_000_000),
+    ]
+    out = ratio_sum_conflicts(rows)
+    assert out["conflict_count"] == 1
+    c = out["conflicts"][0]
+    assert c["object_id"] == "company"
+    assert c["total_percent"] == 115.0
+    assert c["statement_ids"] == ["s1", "s2"]
+
+
+def test_ratio_sum_ignores_other_predicates_and_missing():
+    rows = [
+        # 合计恰好 100%：正常，不报
+        _stmt("s1", obj="c1", ratio=60_000_000),
+        _stmt("s2", obj="c1", ratio=40_000_000),
+        # control 谓词不计入合计
+        _stmt("s3", obj="c1", predicate="controls", ratio=50_000_000),
+        # 比例缺失不计入、也不造成冲突
+        _stmt("s4", obj="c1", ratio=None),
+    ]
+    assert ratio_sum_conflicts(rows) == {"conflict_count": 0, "conflicts": []}
+
+
+def test_ratio_sum_deterministic_ordering():
+    rows = [
+        _stmt("s1", subject="h1", obj="cA", ratio=80_000_000),
+        _stmt("s2", subject="h2", obj="cA", ratio=80_000_000),
+        _stmt("s3", subject="h3", obj="cB", ratio=120_000_000),
+    ]
+    out = ratio_sum_conflicts(rows)
+    assert [c["object_id"] for c in out["conflicts"]] == ["cA", "cB"], "按超额降序"
+    assert ratio_sum_conflicts(list(reversed(rows))) == out

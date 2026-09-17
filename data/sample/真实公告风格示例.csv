@@ -7,3 +7,4 @@ holding,RL-C001,示例南方控股集团股份有限公司,91440300MA5EXAMP01,44
 control,RL-C001,示例南方控股集团股份有限公司,91440300MA5EXAMP01,440000,资本市场服务,,RL-C002,示例新技术股份有限公司,91440300MA5EXAMP02,,,,,https://www.cninfo.com.cn/new/disclosure/detail?announcementId=DEMO2024B,实际控制人情况,控股股东,,2025年第一季度报告（示例，非真实数据）,2025-04-29
 holding,RL-P001,张某,,,,,RL-C002,示例新技术股份有限公司,91440300MA5EXAMP02,,percent,2022-09-01,,https://www.cninfo.com.cn/new/disclosure/detail?announcementId=DEMO2024B,前十名股东持股情况,持股比例未披露,,2025年第一季度报告（示例，非真实数据）,2025-04-29
 holding,RL-P002,李某,,,,,RL-C001,示例南方控股集团股份有限公司,91440300MA5EXAMP99,15,percent,2023-01-01,,https://www.cninfo.com.cn/new/disclosure/detail?announcementId=DEMO2024A,前十名股东持股情况,持股 15%,,2024年年度报告（摘要）（示例，非真实数据）,2025-04-26
+holding,RL-P003,赵某,,,,holding_shares,RL-C002,示例新技术股份有限公司,91440300MA5EXAMP02,60,percent,2024-01-01,,https://www.cninfo.com.cn/new/disclosure/detail?announcementId=DEMO2024B,前十名股东持股情况,持股 60%（故意超百，供比例合计规则演示）,,2025年第一季度报告（示例，非真实数据）,2025-04-29

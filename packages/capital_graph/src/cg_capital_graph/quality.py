@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from cg_domain.models import scaled_to_percent
 from cg_domain.normalization import is_valid_uscc
+from cg_domain.orm import RATIO_SCALE
 
 QUALITY_VERSION = "cg-evidence-quality/1.0.0"
 
@@ -26,6 +27,9 @@ QUALITY_ASSUMPTIONS: tuple[str, ...] = (
     "同键多声明也可能来自合法的事实细分，分组结果需人工甄别；",
     "跨源一致性规则只比较双方比例均给出的情形；任一侧缺失即显式不可比，绝不补值；"
     "同一连接器内部的取值差异不进本规则。",
+    "比例合计规则按公司聚合时点有效的 holds_shares 声明，合计 > 100% 即数学矛盾候选；"
+    "合计偏低不报（分批披露下偏少是常态）；代持/差额/重复计算都可能造成表面超百，"
+    "候选需人工甄别；",
 )
 
 
@@ -133,4 +137,34 @@ def cross_source_conflicts(rows: list[StatementKeyRow]) -> dict:
             }
         )
     conflicts.sort(key=lambda c: (c["subject_id"], c["predicate"], c["object_id"]))
+    return {"conflict_count": len(conflicts), "conflicts": conflicts}
+
+
+# --------------------------------------------------------------- 交叉验证：比例合计
+
+
+def ratio_sum_conflicts(rows: list[StatementKeyRow]) -> dict:
+    """同一公司全部时点有效 holds_shares 声明的比例合计 > 100% → 数学矛盾候选。
+
+    只聚合比例非空的声明（缺失不猜值）；合计偏低不报（分批披露是常态）；
+    输出按 (total_percent 降序, object_id) 排序，同输入同输出。
+    """
+    grouped: dict[str, list[StatementKeyRow]] = defaultdict(list)
+    for r in rows:
+        if r.predicate == "holds_shares" and r.share_ratio_scaled is not None:
+            grouped[r.object_id].append(r)
+    conflicts: list[dict] = []
+    for object_id, members in grouped.items():
+        total_scaled = sum(m.share_ratio_scaled or 0 for m in members)
+        if total_scaled <= RATIO_SCALE:
+            continue
+        conflicts.append(
+            {
+                "object_id": object_id,
+                "total_percent": scaled_to_percent(total_scaled),
+                "statement_count": len(members),
+                "statement_ids": sorted(m.statement_id for m in members),
+            }
+        )
+    conflicts.sort(key=lambda c: (-c["total_percent"], c["object_id"]))
     return {"conflict_count": len(conflicts), "conflicts": conflicts}

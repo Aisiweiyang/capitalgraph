@@ -83,6 +83,7 @@ from cg_capital_graph.quality import (
     cross_source_conflicts,
     duplicate_statements,
     identifier_validity,
+    ratio_sum_conflicts,
 )
 from cg_capital_graph.risk_chains import (
     RISK_CHAINS_ALGORITHM_VERSION,
@@ -169,6 +170,7 @@ __all__ = [
     "input_digest",
     "penetrate",
     "propagate_risk",
+    "ratio_sum_conflicts",
     "region_summary",
     "result_to_jsonable",
     "stale_evidence",

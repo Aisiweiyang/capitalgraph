@@ -26,6 +26,7 @@ from cg_capital_graph import (
     duplicate_statements,
     evidence_coverage,
     identifier_validity,
+    ratio_sum_conflicts,
     stale_evidence,
 )
 from fastapi import APIRouter, HTTPException, Query
@@ -193,6 +194,7 @@ async def evidence_quality_overview(
     )
     uniqueness = duplicate_statements(key_rows)
     consistency = cross_source_conflicts(key_rows)
+    ratio_sum = ratio_sum_conflicts(key_rows)
 
     counts = {
         "coverage_missing": coverage["missing_statements"],
@@ -200,6 +202,7 @@ async def evidence_quality_overview(
         "validity": validity["invalid_count"],
         "uniqueness": uniqueness["group_count"],
         "consistency": consistency["conflict_count"],
+        "ratio_sum": ratio_sum["conflict_count"],
     }
     return {
         "at": at_date.isoformat(),
@@ -211,6 +214,7 @@ async def evidence_quality_overview(
         "validity": validity,
         "uniqueness": uniqueness,
         "consistency": consistency,
+        "ratio_sum": ratio_sum,
     }
 
 
@@ -246,9 +250,15 @@ async def evidence_quality_scan(
     )
     uniqueness = duplicate_statements(key_rows)
     consistency = cross_source_conflicts(key_rows)
+    ratio_sum = ratio_sum_conflicts(key_rows)
 
     created = skipped = 0
-    by_rule = {"identifier_validity": 0, "duplicate_statement": 0, "cross_source_conflict": 0}
+    by_rule = {
+        "identifier_validity": 0,
+        "duplicate_statement": 0,
+        "cross_source_conflict": 0,
+        "ratio_sum_conflict": 0,
+    }
 
     for item in validity["invalid"]:
         if await repo.open_quality_issue_for_entity("identifier_validity", item["entity_id"]):
@@ -287,6 +297,26 @@ async def evidence_quality_scan(
         by_rule["duplicate_statement"] += 1
         created += 1
 
+    for group in ratio_sum["conflicts"]:
+        rep = min(group["statement_ids"])
+        if await repo.open_quality_issue("ratio_sum_conflict", rep):
+            skipped += 1
+            continue
+        await repo.add_quality_issue(
+            "ratio_sum_conflict",
+            entity_id=group["object_id"],
+            statement_id=rep,
+            detail={
+                "at": at_date.isoformat(),
+                "object_id": group["object_id"],
+                "total_percent": group["total_percent"],
+                "statement_ids": group["statement_ids"],
+                "algorithm_version": QUALITY_VERSION,
+            },
+        )
+        by_rule["ratio_sum_conflict"] += 1
+        created += 1
+
     for conflict in consistency["conflicts"]:
         rep = min(v["statement_id"] for v in conflict["values"])
         if await repo.open_quality_issue("cross_source_conflict", rep):
@@ -309,7 +339,10 @@ async def evidence_quality_scan(
         created += 1
 
     total_candidates = (
-        len(validity["invalid"]) + len(uniqueness["groups"]) + len(consistency["conflicts"])
+        len(validity["invalid"])
+        + len(uniqueness["groups"])
+        + len(consistency["conflicts"])
+        + len(ratio_sum["conflicts"])
     )
     await repo.audit(
         actor=user["username"],
@@ -333,6 +366,7 @@ async def evidence_quality_scan(
             "identifier_validity",
             "duplicate_statement",
             "cross_source_conflict",
+            "ratio_sum_conflict",
         ],
     }
 

@@ -607,6 +607,7 @@ export interface EvidenceQualityOut {
     validity: number;
     uniqueness: number;
     consistency: number;
+    ratio_sum: number;
   };
   total_candidates: number;
   validity: {
@@ -630,6 +631,15 @@ export interface EvidenceQualityOut {
       predicate: string;
       object_id: string;
       values: { connector_id: string; share_ratio: number | null; statement_id: string }[];
+    }[];
+  };
+  ratio_sum: {
+    conflict_count: number;
+    conflicts: {
+      object_id: string;
+      total_percent: number | null;
+      statement_count: number;
+      statement_ids: string[];
     }[];
   };
 }

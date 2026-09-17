@@ -131,7 +131,28 @@ class CsvFixtureConnector(BaseConnector):
         )
         result.raw_payloads[path.name] = text[:100000]
         seen_entities: set[str] = set()
+        uscc_by_ext: dict[str, set[str]] = {}  # 交叉验证：ext_id → 出现过的全部非空 uscc
         issues: list[IngestionIssue] = []
+
+        def _register_uscc(ext_id: str, uscc: str | None, line_no: int) -> None:
+            """身份交叉验证：同一 ext_id 携带不同非空 uscc → 警告留痕（不拒行，
+            先到者入主档；是否采信由复核判断——只提示、不认定的导入层体现）。"""
+            if not ext_id or not uscc:
+                return
+            seen = uscc_by_ext.setdefault(ext_id, set())
+            if uscc not in seen:
+                if seen:
+                    issues.append(
+                        IngestionIssue(
+                            code="identity_conflict",
+                            message=(
+                                f"第 {line_no} 行: {ext_id} 携带不同 uscc "
+                                f"{uscc}（此前: {', '.join(sorted(seen))}）"
+                            ),
+                            subject_key=ext_id,
+                        )
+                    )
+                seen.add(uscc)
 
         for line_no, row in enumerate(reader, start=2):
             record_type = (row.get("record_type") or "").strip().lower()
@@ -140,6 +161,7 @@ class CsvFixtureConnector(BaseConnector):
                     entity = self._entity_row(row)
                     result.entities.append(entity)
                     seen_entities.add(entity.external_id)
+                    _register_uscc(entity.external_id, entity.uscc, line_no)
                     continue
                 statement = self._statement_row(row)
                 result.statements.append(statement)
@@ -147,6 +169,7 @@ class CsvFixtureConnector(BaseConnector):
                     name = (row.get(f"{side}_name") or "").strip()
                     ext_id = (row.get(f"{side}_id") or "").strip()
                     uscc = (row.get(f"{side}_uscc") or "").strip() or None
+                    _register_uscc(ext_id, uscc, line_no)
                     if ext_id and ext_id not in seen_entities:
                         result.entities.append(
                             EntityRecord(

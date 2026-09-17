@@ -348,3 +348,73 @@ def test_csv_bad_evidence_date_rejects_row(tmp_path):
     issues = [i for _, i in batches if i is not None]
     assert any(i.code == "row_rejected" and "evidence_date" in i.message for i in issues)
     assert all(not r.statements for r, _ in batches)
+
+
+def test_csv_identity_conflict_warns_not_rejects(tmp_path):
+    """同一 subject_id 携带不同非空 uscc：警告留痕但不拒行（先到者入主档）。"""
+    rows = [
+        [
+            "record_type",
+            "subject_id",
+            "subject_name",
+            "subject_uscc",
+            "predicate",
+            "object_id",
+            "object_name",
+            "object_uscc",
+            "ratio",
+            "ratio_unit",
+            "valid_from",
+            "valid_to",
+            "evidence_url",
+            "field_path",
+            "raw_value",
+        ],
+        # 两行 entity：同 id、不同 uscc
+        [
+            "entity",
+            "X-1",
+            "某公司",
+            "91350100M000100Y1R",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ],
+        [
+            "entity",
+            "X-1",
+            "某公司",
+            "91350100M000100Y1X",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ],
+    ]
+    path = tmp_path / "conflict.csv"
+    import csv as csvmod
+
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        csvmod.writer(handle).writerows(rows)
+
+    connector = CsvFixtureConnector()
+    batches = list(connector.fetch(ConnectorContext(params={"path": str(path)})))
+    issues = [i for _, i in batches if i is not None]
+    assert any(i.code == "identity_conflict" for i in issues), "必须留下身份冲突警告"
+    # 不拒行：两次登记都产出实体
+    assert sum(len(r.entities) for r, _ in batches) == 2

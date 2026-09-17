@@ -266,6 +266,7 @@ export function EvidencePage() {
                 ["validity", "标识符无效"],
                 ["uniqueness", "疑似重复录入"],
                 ["consistency", "跨源取值冲突"],
+                ["ratio_sum", "股东比例超百"],
               ] as const
             ).map(([key, label]) => (
               <div
@@ -334,6 +335,41 @@ export function EvidencePage() {
           ) : (
             <div className="state-empty" data-testid="quality-uniqueness-empty">
               未发现同键并行声明。
+            </div>
+          )}
+          {quality.ratio_sum.conflicts.length > 0 ? (
+            <table className="table compact" data-testid="quality-ratiosum-table">
+              <thead>
+                <tr>
+                  <th>比例超百公司</th>
+                  <th>合计 / 声明数</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {quality.ratio_sum.conflicts.map((c) => (
+                  <tr key={c.object_id}>
+                    <td>
+                      <Link to={`/entities/${c.object_id}`}>{c.object_id}</Link>
+                    </td>
+                    <td>
+                      {c.total_percent != null ? `${c.total_percent}%` : "—"} / {c.statement_count} 条
+                    </td>
+                    <td>
+                      <button
+                        className="linklike"
+                        onClick={() => setQuery(c.statement_ids.join(","))}
+                      >
+                        反查
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="state-empty" data-testid="quality-ratiosum-empty">
+              未发现股东比例合计超百。
             </div>
           )}
           {quality.consistency.conflicts.length > 0 ? (
