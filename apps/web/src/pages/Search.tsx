@@ -73,6 +73,9 @@ export function SearchPage() {
                       {hit.primary_name}
                     </Link>
                     <span className="tag">{kindLabel(hit.kind)}</span>
+                    {hit.score != null && (
+                      <span className="muted">相关度 {Math.round(hit.score * 100)}%</span>
+                    )}
                   </li>
                 ))}
               </ul>

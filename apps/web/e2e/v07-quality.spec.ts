@@ -13,9 +13,9 @@ test.describe.serial("CapitalGraph CN v0.7 质量总览", () => {
     const overview = page.getByTestId("quality-overview");
     await expect(overview).toBeVisible({ timeout: 20000 });
 
-    // 五个维度计数卡片
+    // 六个维度计数卡片（v0.10 增比例合计维度）
     const cards = page.getByTestId("quality-counts").locator(".stat-card");
-    await expect(cards).toHaveCount(5);
+    await expect(cards).toHaveCount(6);
 
     // 有效性：合成库不变量（USCC 全部合法）→ 空态
     await expect(page.getByTestId("quality-validity-empty")).toBeVisible({

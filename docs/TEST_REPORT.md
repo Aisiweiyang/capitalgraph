@@ -693,9 +693,27 @@ CSV 模板自 v0.3.1 起就从未真正进入仓库（文档引用它、本地�
 
 | 命令 | 结果 |
 | --- | --- |
-| `uv run pytest tests --cov -q -n auto --dist loadfile` | **254 passed / 94.9%**（+5：评分分层 5 项 + API 排序 1 项，既有零回归） |
+| `uv run pytest tests --cov -q -n auto --dist loadfile` | **259 passed / 94.9%**（+6：评分分层 5 项 + API 排序 1 项，既有零回归） |
 | `cd apps/web && npx tsc -b && npm run lint && npx vitest run` | 通过 / 74 passed（EntityHit 类型同步） |
 | ruff / format / mypy / secret_scan / module_graph | 全部通过 |
 
 行为验证（seed=42 合成库实测）：检索"有限公司"8 命中全部 score=0.85（包含层）；
 检索"永安"前缀命中 score=0.9 居首；同分按主档名序稳定。
+
+## v0.11.1 维护记录（2026-09-18，文档时效同步 + 检索相关度 UI + E2E 断言补漏，零功能变更）
+
+范围：v0.9–v0.11 三轮的功能行与状态数字同步进 README/PROJECT_GUIDE；Search 页
+展示相关度百分比；修复 v0.10 遗漏的 E2E 断言。基线 v0.11：后端 254（实为 259）。
+
+| 命令 | 结果 |
+| --- | --- |
+| `uv run pytest tests -n auto --dist loadfile` | 259 passed 零回归 |
+| `CG_API_PROXY=… npx playwright test` | **22 passed**（含 v07-quality 卡数断言 5→6 补漏） |
+| tsc / lint / vitest / build | 通过，74 passed |
+
+### 同步与修复
+
+- TEST_REPORT §v0.11 计数修正（254→259）；PROJECT_GUIDE 状态行与功能表补
+  v0.9/v0.10/v0.11 三行；README 功能行补交叉验证与相关度检索；
+- Search 页结果行展示相关度百分比（score×100 取整，仅含 SQL 命中）；
+- v07-quality.spec 卡数断言 5→6（v0.10 加第六卡时遗漏的 E2E 断言，本轮全量跑出）。
