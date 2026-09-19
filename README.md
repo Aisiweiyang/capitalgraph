@@ -47,6 +47,7 @@ uv run pytest
 ## 文档
 
 - [PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) **项目完整指南**（功能全景/代码开发/使用/调试入口）
+- [docs/项目操作、功能说明、二次开发与调试手册.docx](docs/项目操作、功能说明、二次开发与调试手册.docx) Word 版技术手册（40 章：安装/启动/功能/API/数据库/二次开发/Debug）
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) 架构与取舍
 - [DATA_MODEL.md](docs/DATA_MODEL.md) 数据模型
 - [docs/DECISIONS.md](docs/DECISIONS.md) ADR
