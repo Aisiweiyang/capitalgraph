@@ -58,7 +58,7 @@ async def seed(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="CapitalGraph CN 种子数据")
+    parser = argparse.ArgumentParser(description="CapitalGraph 种子数据")
     parser.add_argument("--entities", type=int, default=40, help="合成主体数量")
     parser.add_argument("--seed", type=str, default="42", help="随机种子（保证可复现）")
     args = parser.parse_args()

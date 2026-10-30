@@ -1,4 +1,4 @@
-"""CapitalGraph CN FastAPI 应用入口。"""
+"""CapitalGraph FastAPI 应用入口。"""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ async def _lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="CapitalGraph CN API",
+        title="CapitalGraph API",
         version="0.11.0",
         description="中国企业资本关系与股权穿透研究平台（结果为候选，不构成法律认定）",
         docs_url=f"{API_PREFIX}/docs",

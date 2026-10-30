@@ -418,7 +418,7 @@ ${chartImage(opts.chartPng)}
 ${sections(ctx, opts)}
 ${opts.evidence ? evidenceTableSection(opts.evidence) : ""}
 <div class="disclaimer">${esc(REPORT_DISCLAIMER)}</div>
-<footer>CapitalGraph CN 研究快照 · 报告由前端本地生成，未上传任何数据。</footer>
+<footer>CapitalGraph 研究快照 · 报告由前端本地生成，未上传任何数据。</footer>
 </body>
 </html>`;
 }

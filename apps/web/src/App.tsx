@@ -33,7 +33,7 @@ function Header() {
   const navigate = useNavigate();
   return (
     <header className="header">
-      <span className="brand">CapitalGraph CN</span>
+      <span className="brand">CapitalGraph</span>
       <nav>
         <NavLink to="/dashboard">总览</NavLink>
         <NavLink to="/flows">资本流动</NavLink>

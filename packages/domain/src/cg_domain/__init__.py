@@ -1,4 +1,4 @@
-"""CapitalGraph CN 领域模型包。
+"""CapitalGraph 领域模型包。
 
 包含实体/标识/别名的类型与 ORM、时态声明（relationship statements）、
 证据与来源链条、实体解析决策记录与派生结果存储。

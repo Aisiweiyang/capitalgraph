@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test";
  * 既有 16 项用例不得回归（core-flow.spec.ts + v05-pages.spec.ts）。
  */
 
-test.describe.serial("CapitalGraph CN v0.6 证据质量", () => {
+test.describe.serial("CapitalGraph v0.6 证据质量", () => {
   test("覆盖率趋势区：图表与逐年表格渲染", async ({ page }) => {
     await page.goto("/evidence");
     const table = page.getByTestId("coverage-timeline-table");

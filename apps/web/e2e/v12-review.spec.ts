@@ -22,7 +22,7 @@ async function loginAnalyst(page: Page) {
   await page.reload();
 }
 
-test.describe.serial("CapitalGraph CN v0.12 复核处置闭环", () => {
+test.describe.serial("CapitalGraph v0.12 复核处置闭环", () => {
   test("质量问题表渲染与处置", async ({ page }) => {
     await page.goto("/review");
     await loginAnalyst(page);

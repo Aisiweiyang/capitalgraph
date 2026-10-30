@@ -1,4 +1,4 @@
-# CapitalGraph CN 架构
+# CapitalGraph 架构
 
 版本：0.3 ｜ 2026-09-12
 

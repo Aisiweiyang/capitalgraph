@@ -1,4 +1,4 @@
-# CapitalGraph CN 数据模型
+# CapitalGraph 数据模型
 
 版本：0.3 ｜ 2026-09-12 ｜ 与 `packages/domain` 实现保持同步
 

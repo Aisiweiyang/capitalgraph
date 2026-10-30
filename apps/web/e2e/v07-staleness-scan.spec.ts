@@ -21,7 +21,7 @@ async function loginAnalyst(page: Page) {
   await page.reload();
 }
 
-test.describe.serial("CapitalGraph CN v0.7 时效扫描入库（analyst 写通道）", () => {
+test.describe.serial("CapitalGraph v0.7 时效扫描入库（analyst 写通道）", () => {
   test("扫描按钮可见且幂等登记：created → skipped", async ({ page }) => {
     await page.goto("/evidence");
     await loginAnalyst(page);
@@ -47,7 +47,7 @@ test.describe.serial("CapitalGraph CN v0.7 时效扫描入库（analyst 写通�
 });
 
 
-test.describe.serial("CapitalGraph CN v0.8 质量登记（analyst 写通道）", () => {
+test.describe.serial("CapitalGraph v0.8 质量登记（analyst 写通道）", () => {
   test("三类候选幂等登记复核通道", async ({ page }) => {
     await page.goto("/evidence");
     await loginAnalyst(page);

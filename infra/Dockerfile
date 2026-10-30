@@ -1,4 +1,4 @@
-# CapitalGraph CN API/worker 镜像（生产形态用）
+# CapitalGraph API/worker 镜像（生产形态用）
 FROM python:3.12-slim
 
 # 安装 uv 作为包管理器

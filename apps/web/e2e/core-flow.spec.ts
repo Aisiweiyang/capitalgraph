@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
  * 登录态由 setup 项目（auth.setup.ts）通过 API 预置。
  */
 
-test.describe.serial("CapitalGraph CN 核心链路", () => {
+test.describe.serial("CapitalGraph 核心链路", () => {
   let entityUrl: string;
 
   test("检索企业", async ({ page }) => {

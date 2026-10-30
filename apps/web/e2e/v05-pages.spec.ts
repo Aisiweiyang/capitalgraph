@@ -18,7 +18,7 @@ async function apiGet(page: Page, path: string) {
   }, path);
 }
 
-test.describe.serial("CapitalGraph CN v0.5 页面", () => {
+test.describe.serial("CapitalGraph v0.5 页面", () => {
   test("异动页：事件流列表与类型筛选", async ({ page }) => {
     await page.goto("/events");
     await expect(page.locator(".timeline-item").first()).toBeVisible({ timeout: 20000 });

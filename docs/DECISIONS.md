@@ -76,7 +76,7 @@
 
 - 背景：开发启动后发现另一并行会话在同一父目录搭建 AshareSignal Lab（asg-* uv workspace，
   占用根级 pyproject.toml/uv.lock 与 packages/、apps/api 目录名）。
-- 决策：CapitalGraph CN 全部成果收敛于 `资本图谱/` 子目录，内含独立 Git 仓库、独立 uv workspace、
+- 决策：CapitalGraph 全部成果收敛于 `资本图谱/` 子目录，内含独立 Git 仓库、独立 uv workspace、
   独立 npm 工程；绝不读写父目录中 asg-* 相关文件。
 - 代价：父目录与本项目各有仓库，需分别操作；收益：零冲突，`资本图谱/` 整体可搬移到任意路径。
 - 工作区中"当前目录"解释为本项目子目录；最终交付物均位于 `资本图谱/` 内。

@@ -6,6 +6,7 @@
 ## [Unreleased] — 2026-10-30
 
 ### 开源准备
+- 仓库名称调整为 `capitalgraph`，同步项目名称、界面标题和仓库链接。
 - 补充首次构建前端的步骤与 Node.js 22 环境说明，修正第三方声明链接。
 - 升级 Vite、Vitest 与 coverage 插件，并更新依赖锁文件，修复本次 npm audit 检出的依赖漏洞。
 - 同步已登记前端依赖的 SBOM 版本；本轮自动验证结果以 GitHub Actions 记录为准。

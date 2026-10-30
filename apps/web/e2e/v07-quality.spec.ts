@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test";
  * 既有 19 项用例不得回归。
  */
 
-test.describe.serial("CapitalGraph CN v0.7 质量总览", () => {
+test.describe.serial("CapitalGraph v0.7 质量总览", () => {
   test("五维度计数与规则表/空态渲染", async ({ page }) => {
     await page.goto("/evidence");
     const overview = page.getByTestId("quality-overview");

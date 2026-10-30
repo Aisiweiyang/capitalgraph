@@ -63,7 +63,7 @@ export function SearchPage() {
   const initialQuery = params.get("q") ?? "";
   const autoRan = useRef(initialQuery === "");
   useEffect(() => {
-    document.title = "CapitalGraph CN — 检索";
+    document.title = "CapitalGraph — 检索";
     if (initialQuery && !autoRan.current) {
       autoRan.current = true;
       void doSearch();
