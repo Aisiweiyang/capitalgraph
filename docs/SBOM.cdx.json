@@ -285,8 +285,8 @@
     {
       "type": "library",
       "name": "@vitest/coverage-v8",
-      "version": "5.0.1",
-      "purl": "pkg:npm/@vitest/coverage-v8@5.0.1"
+      "version": "5.0.3",
+      "purl": "pkg:npm/@vitest/coverage-v8@5.0.3"
     },
     {
       "type": "library",
@@ -297,8 +297,8 @@
     {
       "type": "library",
       "name": "@vitest/mocker",
-      "version": "5.0.1",
-      "purl": "pkg:npm/@vitest/mocker@5.0.1"
+      "version": "5.0.3",
+      "purl": "pkg:npm/@vitest/mocker@5.0.3"
     },
     {
       "type": "library",
@@ -525,8 +525,8 @@
     {
       "type": "library",
       "name": "magic-string",
-      "version": "1.4.1",
-      "purl": "pkg:npm/magic-string@1.4.1"
+      "version": "1.4.5",
+      "purl": "pkg:npm/magic-string@1.4.5"
     },
     {
       "type": "library",
@@ -579,8 +579,8 @@
     {
       "type": "library",
       "name": "postcss",
-      "version": "8.5.28",
-      "purl": "pkg:npm/postcss@8.5.28"
+      "version": "8.5.32",
+      "purl": "pkg:npm/postcss@8.5.32"
     },
     {
       "type": "library",
@@ -621,8 +621,8 @@
     {
       "type": "library",
       "name": "rolldown",
-      "version": "1.2.7",
-      "purl": "pkg:npm/rolldown@1.2.7"
+      "version": "1.2.16",
+      "purl": "pkg:npm/rolldown@1.2.16"
     },
     {
       "type": "library",
@@ -705,14 +705,14 @@
     {
       "type": "library",
       "name": "vite",
-      "version": "8.3.0",
-      "purl": "pkg:npm/vite@8.3.0"
+      "version": "8.3.5",
+      "purl": "pkg:npm/vite@8.3.5"
     },
     {
       "type": "library",
       "name": "vitest",
-      "version": "5.0.1",
-      "purl": "pkg:npm/vitest@5.0.1"
+      "version": "5.0.3",
+      "purl": "pkg:npm/vitest@5.0.3"
     },
     {
       "type": "library",
@@ -735,8 +735,8 @@
     {
       "type": "library",
       "name": "why-is-node-running",
-      "version": "2.3.0",
-      "purl": "pkg:npm/why-is-node-running@2.3.0"
+      "version": "3.2.1",
+      "purl": "pkg:npm/why-is-node-running@3.2.1"
     },
     {
       "type": "library",
