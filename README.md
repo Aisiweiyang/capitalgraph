@@ -7,12 +7,21 @@
 
 ## 快速开始
 
-**最简路径**：双击 `启动演示.cmd`（安装→迁移→种子→启动，一次到位），浏览器打开 http://127.0.0.1:8300 。
+**首次准备**：安装 uv 和 Node.js 22，在仓库根目录执行以下命令构建前端：
+
+```powershell
+cd apps/web
+npm ci
+npm run build
+cd ../..
+```
+
+之后双击 `启动演示.cmd`（安装后端依赖→迁移→种子→启动），浏览器打开 http://127.0.0.1:8300 。
 想自己动手或二次开发，看下面的手动步骤与 [docs/USER_GUIDE.md](docs/USER_GUIDE.md)。
 
 ### 本地开发（无需 Docker）
 
-前置：uv（Python 3.12 由 uv 自动管理）、Node.js ≥ 20。
+前置：uv（Python 3.12 由 uv 自动管理）、Node.js 22。
 
 ```bash
 # 后端：安装 + 迁移 + 种子数据 + 启动
@@ -99,4 +108,4 @@ scripts                     演示、备份、SBOM、扫描脚本
 
 ## 许可证
 
-Apache-2.0（见 LICENSE；第三方组件见 THIRD_PARTY_NOTICES.md）
+Apache-2.0（见 [LICENSE](LICENSE)；第三方组件与数据来源见 [第三方声明](docs/THIRD_PARTY_NOTICES.md)）
